@@ -356,6 +356,8 @@ class ITP:
         for ica in iatg_controlled.iCAs:
             if attr_tuple_form_basal_irrev_in_controlled in ica.attractors_in_iCA:
                 break
+        else:
+            raise ValueError("The attractor_basal_irrev in the controlled iATG is not contained in iCA.")
         
         phenotype_of_ica_in_IC_transition_in_controlled = ica.get_phenotype_score_for_IC("transition")
         phenotype_of_ica_in_IC_transition_in_controlled = {phenonode:averstate for phenonode, averstate in phenotype_of_ica_in_IC_transition_in_controlled.items() if averstate in (0,1)}

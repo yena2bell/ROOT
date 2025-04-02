@@ -66,7 +66,7 @@ class ITP:
                 coherency_condition = irreversibility_enhancing_subnet_and_coherency_condition[1]
                 if self._dict1_contain_dict2(non_cyclic_part_basal_common, coherency_condition):
                     irreversibility_enhancing_subnets_and_coherency_conditions_selected.append(irreversibility_enhancing_subnet_and_coherency_condition)
-                    feedback_loops_used_in_selected.append(feedback_loops_used_for_each_irreversibility_enhancing_subnet[i])
+                    feedback_loops_used_in_selected.extend(feedback_loops_used_for_each_irreversibility_enhancing_subnet[i])
             feedback_loops_copied = [feedback_loop for feedback_loop in feedback_loops_copied if feedback_loop not in feedback_loops_used_in_selected]
             i_comb += 1
         
@@ -343,9 +343,9 @@ class ITP:
         iatg_controlled.get_attractor_transitions_induced_by_IC_change_and_calculate_TPs()
         iatg_controlled.find_iCAs_and_calculate_iCA_sizes()
         
-        attractor_landscape_basal = self.iCA.iATG.attractor_landscape_basal
+        attractor_landscape_basal_in_controlled = iatg_controlled.attractor_landscape_basal
         attractor_basal_irrev = self._get_attractor_object_using_attr_tuple_form(self.attr_basal_irrev)
-        for i, attractor_in_controlled in attractor_landscape_basal.attractor_index_map.items():
+        for i, attractor_in_controlled in attractor_landscape_basal_in_controlled.attractor_index_map.items():
             if attractor_basal_irrev == attractor_in_controlled:
                 break
         else:

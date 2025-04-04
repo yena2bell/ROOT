@@ -25,6 +25,11 @@ class ITP:
         self.irreversibility_motifs = []
         self.coherency_conditions = []
 
+        self.pheno_basal_irrev = {}
+        self.pheno_transition = {}
+        self.pheno_basal_rev = {}
+        
+
     def __repr__(self):
         return "ITP from {} to {} to {}".format(self.attr_basal_irrev, self.attr_transition, self.attr_basal_rev)
     
@@ -33,20 +38,24 @@ class ITP:
     
     def set_phenotype_nodes(self, phenotype_nodes):
         self.phenotype_nodes = list(phenotype_nodes)
+        self._calculate_phenotype_scores()
 
-    def get_phenotype_score(self):
+    def _calculate_phenotype_scores(self):
         attractor_basal_irrev = self._get_attractor_object_using_attr_tuple_form(self.attr_basal_irrev)
         attractor_transition = self._get_attractor_object_using_attr_tuple_form(self.attr_transition)
         attractor_basal_rev = self._get_attractor_object_using_attr_tuple_form(self.attr_basal_rev)
         
-        pheno_basal_irrev = {phenonode:averstate for phenonode, averstate in attractor_basal_irrev.get_average_state().items() if phenonode in self.phenotype_nodes}
-        pheno_transition = {phenonode:averstate for phenonode, averstate in attractor_transition.get_average_state().items() if phenonode in self.phenotype_nodes}
-        pheno_basal_rev = {phenonode:averstate for phenonode, averstate in attractor_basal_rev.get_average_state().items() if phenonode in self.phenotype_nodes}
-        print("attractor_basal_irrev: ", pheno_basal_irrev)
+        self.pheno_basal_irrev = {phenonode:averstate for phenonode, averstate in attractor_basal_irrev.get_average_state().items() if phenonode in self.phenotype_nodes}
+        self.pheno_transition = {phenonode:averstate for phenonode, averstate in attractor_transition.get_average_state().items() if phenonode in self.phenotype_nodes}
+        self.pheno_basal_rev = {phenonode:averstate for phenonode, averstate in attractor_basal_rev.get_average_state().items() if phenonode in self.phenotype_nodes}
+
+
+    def get_phenotype_score(self):
+        print("attractor_basal_irrev: ", self.pheno_basal_irrev)
         print("->")
-        print("attractor_transition: ", pheno_transition)
+        print("attractor_transition: ", self.pheno_transition)
         print("->")
-        print("attractor_basal_rev: ", pheno_basal_rev)
+        print("attractor_basal_rev: ", self.pheno_basal_rev)
 
     def find_irreversibility_kernel(self, max_len=0):
         fixed_nodes = list(self.iCA.iATG.fixed_node_state_map.keys())

@@ -199,8 +199,15 @@ class ITP:
         list_of_edges = []
         for edge in expanded_net.edges():
             list_of_edges.append(edge)
+        specific_expanded_nodes = set(specific_expanded_nodes)
 
-        for specific_expanded_node in specific_expanded_nodes:
+        while specific_expanded_nodes:
+            print(specific_expanded_nodes)
+            specific_expanded_node = specific_expanded_nodes.pop()
+            print(specific_expanded_node)
+            for e in list_of_edges:
+                print(e)
+            ####################
             cycle_finder = Find_cycles_containing_the_node(specific_expanded_node, list_of_edges)
             if max_len == 0:
                 cycles_containing_the_node = cycle_finder.find_cycles(algorithm="Johnson", max_len=None, return_node_form=True)
@@ -213,11 +220,16 @@ class ITP:
 
             #remake the list of edges without the specific_expanded_node
             list_of_edges_wo_specific_node = []
+            expanded_nodes_in_list_of_edges_wo_specific_node = set()
             for edge in list_of_edges:
                 if specific_expanded_node in edge:
                     continue
                 list_of_edges_wo_specific_node.append(edge)
+                expanded_nodes_in_list_of_edges_wo_specific_node.update(edge)
             list_of_edges = list_of_edges_wo_specific_node
+            specific_expanded_nodes.intersection_update(expanded_nodes_in_list_of_edges_wo_specific_node)
+            # by the process of deleting edges, specific_expanded_node not yet popped can be deleted from the list of edges
+
         
         # filter feedback loops that do not contain fixed nodes
         feedback_loops_not_containing_fixed_nodes = []

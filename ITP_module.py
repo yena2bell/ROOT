@@ -202,12 +202,7 @@ class ITP:
         specific_expanded_nodes = set(specific_expanded_nodes)
 
         while specific_expanded_nodes:
-            print(specific_expanded_nodes)
             specific_expanded_node = specific_expanded_nodes.pop()
-            print(specific_expanded_node)
-            for e in list_of_edges:
-                print(e)
-            ####################
             cycle_finder = Find_cycles_containing_the_node(specific_expanded_node, list_of_edges)
             if max_len == 0:
                 cycles_containing_the_node = cycle_finder.find_cycles(algorithm="Johnson", max_len=None, return_node_form=True)

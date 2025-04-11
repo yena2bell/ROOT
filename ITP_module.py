@@ -79,8 +79,47 @@ class ITP:
             feedback_loops_copied = [feedback_loop for feedback_loop in feedback_loops_copied if feedback_loop not in feedback_loops_used_in_selected]
             i_comb += 1
         
-        self._convert_selected_irreversibility_enhancing_subnets_to_irreversibility_kernel(irreversibility_enhancing_subnets_and_coherency_conditions_selected)
+        # delete duplcated irreversibility_enhancing_subnets_and_coherency_conditions
+        irreversibility_enhancing_subnets_and_coherency_conditions_not_duplicated = []
+        for irreversibility_enhancing_subnet_and_coherency_condition in irreversibility_enhancing_subnets_and_coherency_conditions_selected:
+            if irreversibility_enhancing_subnet_and_coherency_condition not in irreversibility_enhancing_subnets_and_coherency_conditions_not_duplicated:
+                irreversibility_enhancing_subnets_and_coherency_conditions_not_duplicated.append(irreversibility_enhancing_subnet_and_coherency_condition)
+            
+        irreversibility_enhancing_subnets_and_coherency_conditions_not_superset = self._delete_irreversibility_enhancing_subnet_which_is_superset(irreversibility_enhancing_subnets_and_coherency_conditions_not_duplicated)
+        
+        self._convert_selected_irreversibility_enhancing_subnets_to_irreversibility_kernel(irreversibility_enhancing_subnets_and_coherency_conditions_not_superset)
     
+    def _delete_irreversibility_enhancing_subnet_which_is_superset(self, irreversibility_enhancing_subnets_and_coherency_conditions):
+        """delete irreversibility_enhancing_subnet which is superset of other irreversibility_enhancing_subnet"""
+        changed = True
+
+        while changed:
+            changed = False
+            to_remove = []
+
+            for i,j in itertools.permutations(range(len(irreversibility_enhancing_subnets_and_coherency_conditions)), 2):
+                irreversibility_enhancing_subnet_and_coherency_condition_i = irreversibility_enhancing_subnets_and_coherency_conditions[i]
+                irreversibility_enhancing_subnet_i = irreversibility_enhancing_subnet_and_coherency_condition_i[0]
+                irreversibility_enhancing_subnet_and_coherency_condition_j = irreversibility_enhancing_subnets_and_coherency_conditions[j]
+                irreversibility_enhancing_subnet_j = irreversibility_enhancing_subnet_and_coherency_condition_j[0]
+
+                if irreversibility_enhancing_subnet_i == irreversibility_enhancing_subnet_j:
+                    coherency_condition_i = irreversibility_enhancing_subnet_and_coherency_condition_i[1]
+                    coherency_condition_j = irreversibility_enhancing_subnet_and_coherency_condition_j[1]
+                    if self._dict1_contain_dict2(coherency_condition_i, coherency_condition_j):
+                        to_remove.append(irreversibility_enhancing_subnet_and_coherency_condition_i)
+                        break
+
+                elif irreversibility_enhancing_subnet_i.issuperset(irreversibility_enhancing_subnet_j):
+                    to_remove.append(irreversibility_enhancing_subnet_and_coherency_condition_i)
+                    break
+            
+            if to_remove:
+                irreversibility_enhancing_subnets_and_coherency_conditions = [subnet_and_condition for subnet_and_condition in irreversibility_enhancing_subnets_and_coherency_conditions if subnet_and_condition not in to_remove]
+                changed = True
+        
+        return irreversibility_enhancing_subnets_and_coherency_conditions
+
     def _convert_selected_irreversibility_enhancing_subnets_to_irreversibility_kernel(self, selected_irreversibility_enhancing_subnets):
         for subnet_and_coherency_condition in selected_irreversibility_enhancing_subnets:
             expanded_node_names_in_subnet = subnet_and_coherency_condition[0]

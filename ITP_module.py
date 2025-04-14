@@ -236,9 +236,14 @@ class ITP:
         If max_len is 0, the length of the feedback loop is not limited."""
         feedback_loops = []
         list_of_edges = []
+
+        expanded_nodes_in_list_of_edges_wo_specific_node = set()
         for edge in expanded_net.edges():
             list_of_edges.append(edge)
+            expanded_nodes_in_list_of_edges_wo_specific_node.update(edge)
+
         specific_expanded_nodes = set(specific_expanded_nodes)
+        specific_expanded_nodes.intersection_update(expanded_nodes_in_list_of_edges_wo_specific_node)
 
         while specific_expanded_nodes:
             specific_expanded_node = specific_expanded_nodes.pop()

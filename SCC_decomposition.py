@@ -194,7 +194,7 @@ def highest_SCCs_finding(llSCC, lt_SCClinks, b_onenodeSCC = False):
             l_ihighest_hierarchy.append(i)
 
     if b_onenodeSCC:
-        return(l_ihighest_hierarchy)
+        return [llSCC[i] for i in l_ihighest_hierarchy]
     else:#highest nodes should have more than or equal to 2 nodes
         l_candidate = []
         for i in range(len(l_ihighest_hierarchy)-1,-1,-1):

@@ -36,7 +36,7 @@ class iATG:
 
         self.iCAs = []
         self.expanded_net = None
-        self.indexes_of_iCAs_descending_order = []
+        self.indexes_of_iCAs_descending_order = None
         self.major_iCAs = []
 
     def get_attr_tuple_forms(self, get_only_specific_IC=None):
@@ -272,7 +272,8 @@ class iATG:
         """Displays iCAs in descending order of iCA size.
         Additionally, shows the phenotype for each IC in each iCA.
         Also presents the cumulative sum of iCA sizes."""
-        self.indexes_of_iCAs_descending_order = sorted(range(len(self.iCAs)), key=lambda i: self.iCAs[i].get_iCA_size(), reverse=True)
+        if self.indexes_of_iCAs_descending_order is None:
+            self.indexes_of_iCAs_descending_order = sorted(range(len(self.iCAs)), key=lambda i: self.iCAs[i].get_iCA_size(), reverse=True)
 
         col_widths = [8,15, 13, 12, 13]
         column_names = ["iCA size", "cumulative sum of iCA sizes", "attractors in this iCA",
@@ -307,6 +308,9 @@ class iATG:
         """Selects iCAs in descending order of iCA size 
         until the cumulative sum of iCA sizes reaches or exceeds the threshold.
         The selected iCAs are defined as major iCAs."""
+        if self.indexes_of_iCAs_descending_order is None:
+            self.indexes_of_iCAs_descending_order = sorted(range(len(self.iCAs)), key=lambda i: self.iCAs[i].get_iCA_size(), reverse=True)
+            
         cumulative_sum_of_iCA_sizes = 0
         for ica_index in self.indexes_of_iCAs_descending_order:
             ica = self.iCAs[ica_index]

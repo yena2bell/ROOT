@@ -149,6 +149,9 @@ class Attractor:
         for network_state in self.attractor_states:
             print(str(network_state))
     
+    def get_attractor_states(self):
+        return self.attractor_states
+    
     def get_average_state(self):
         """각 node에 대해서, state의 평균을 구한 뒤, dict로 return"""
         node_statesum = {}

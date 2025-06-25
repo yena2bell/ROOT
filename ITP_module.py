@@ -419,6 +419,7 @@ class ITP:
         else:
             raise ValueError("The attractor_basal_irrev in the controlled iATG is not contained in iCA.")
         
+        ica.set_phenotype_nodes(phenotype_nodes)
         phenotype_of_ica_in_IC_transition_in_controlled = ica.get_phenotype_score_for_IC("transition")
         phenotype_of_ica_in_IC_transition_in_controlled = {phenonode:averstate for phenonode, averstate in phenotype_of_ica_in_IC_transition_in_controlled.items() if averstate in (0,1)}
         #phenotype 에서 non-cyclic 부분만 골라낸다.

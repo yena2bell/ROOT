@@ -131,6 +131,10 @@ class iATG:
         print("Calculating attractor landscape on input configuration {} using random initial states.".format(self.IC_transition))
         self.attractor_landscape_transition = self.calculate_attractor_landscape_for_specific_IC_using_random_initials(self.IC_transition, waiting_num, difference_threshold, verbose)
 
+    def set_empty_attractor_landscape_for_each_IC_wo_calculation(self):
+        self.attractor_landscape_basal = Attractor_landscape_for_specific_IC(self.dynamics_Boolean_net, self.IC_basal, self.fixed_node_state_map)
+        self.attractor_landscape_transition = Attractor_landscape_for_specific_IC(self.dynamics_Boolean_net, self.IC_transition, self.fixed_node_state_map)
+
     def calculate_attractor_landscape_for_specific_IC_using_all_initials(self, IC:dict):
         """Calculate the attractor landscape for a specific input configuration (IC)."""
         attractor_landscape_for_IC = Attractor_landscape_for_specific_IC(self.dynamics_Boolean_net, IC, self.fixed_node_state_map)

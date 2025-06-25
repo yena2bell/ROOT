@@ -2,6 +2,7 @@ import itertools
 
 import Expanded_net_analysis as ENA
 from Cycle_analysis import Find_cycles_containing_the_node
+from Attractor_landscape_calculation import Attractor_landscape_for_specific_IC
 
 import iATG_module
 
@@ -326,6 +327,56 @@ class ITP:
     def _get_info_of_expanded_node(self, expanded_node_name):
         return self._get_expanded_network().nodes()[expanded_node_name]['info']
     
+    def get_the_reversion_probability_by_temporary_control(self, temporary_control, verbose=False):
+        """temporary_control is given as a dictionary in the form of {node: state}.
+        When the model state is in attractor_basal_rev, 
+        the system applies the temporary_control to let the state converge to a new attractor. 
+        Then, after removing the temporary_control, 
+        it calculates the reversion probability, 
+        which is the probability that the system returns to attractor_basal_irrev.
+        
+        If attractor_basal_rev is a cyclic attractor or 
+        the new attractor obtained after applying temporary_control is a cyclic attractor, 
+        the reversion probability is calculated under the assumption 
+        that the system is equally likely to be in any state of the cyclic attractor."""
+        dynamics_pyboolnet = self.iCA.iATG.dynamics_Boolean_net
+        IC_basal = self.iCA.iATG.IC_basal
+        fixed_node_state_map = self.iCA.iATG.fixed_node_state_map
+
+        fixed_node_state_map_with_temporary_control = {**fixed_node_state_map, **temporary_control}
+        attractor_landscape_wo_control = self.iCA.iATG.attractor_landscape_basal
+        attractor_landscape_controlled = Attractor_landscape_for_specific_IC(dynamics_pyboolnet, IC_basal, fixed_node_state_map_with_temporary_control)
+
+        attractor_basal_rev_object = self._get_attractor_object_using_attr_tuple_form(self.attr_basal_rev)
+        attractor_basal_irrev_object = self._get_attractor_object_using_attr_tuple_form(self.attr_basal_irrev)
+
+        attractor_states_of_basal_rev = attractor_basal_rev_object.get_attractor_states()
+        num_of_attractor_basal_rev_states = len(attractor_states_of_basal_rev)
+        if verbose:
+            print("this attractor has {} states".format(num_of_attractor_basal_rev_states))
+        reversion_probability = 0
+        for state_object in attractor_states_of_basal_rev:
+            if verbose:
+                print("state_object: ")
+                print(state_object)
+            attractor_object_under_control = attractor_landscape_controlled.converge_network_state_value_to_attractor(state_object)
+            attractor_states_converged_after_control = attractor_object_under_control.get_attractor_states()
+            num_of_attractor_converged_after_control_states = len(attractor_states_converged_after_control)
+            if verbose:
+                print("this state converges to attractor with {} states after applying the temporary control".format(num_of_attractor_converged_after_control_states))
+            num_of_states_going_to_basal_irrev = 0
+            for state_converged_after_control in attractor_states_converged_after_control:
+                attractor_object_after_removing_control = attractor_landscape_wo_control.converge_network_state_value_to_attractor(state_converged_after_control)
+                if attractor_object_after_removing_control == attractor_basal_irrev_object:
+                    num_of_states_going_to_basal_irrev += 1
+                    if verbose:
+                        print("the state in converged attractor")
+                        print(state_converged_after_control)
+                        print("arrived to attractor_basal_irrev")
+            reversion_probability_for_this_state = num_of_states_going_to_basal_irrev / num_of_attractor_converged_after_control_states
+            reversion_probability += (reversion_probability_for_this_state / num_of_attractor_basal_rev_states)
+        
+        return reversion_probability   
 
     def find_reverse_controls(self):
         reverse_controls = []

@@ -34,6 +34,12 @@ class Attractor_landscape_for_specific_IC:
         attindex_basinratio_map = {index:basin_size/total_basin_size for index, basin_size in attindex_basinsize_map.items()}
         return attindex_basinratio_map
     
+    @attindex_basinratio_map.setter
+    def attindex_basinratio_map(self, value):
+        """thie setter is needed for method 'get_the_average_state_for_each_IC_by_permanent_control'
+        of 'ITP' object."""
+        self.attindex_basinstates_map = value
+    
     @property
     def num_of_states_searched(self):
         attindex_basinsize_map = {index:len(basin) for index, basin in self.attindex_basinstates_map.items()}

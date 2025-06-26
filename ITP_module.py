@@ -399,10 +399,15 @@ class ITP:
         attractor_basal_rev_object = self._get_attractor_object_using_attr_tuple_form(self.attr_basal_rev)
         attractor_states_of_basal_rev = attractor_basal_rev_object.get_attractor_states()
         num_of_attractor_basal_rev_states = len(attractor_states_of_basal_rev)
+        if verbose:
+            print("attractor_basal_rev has {} states".format(num_of_attractor_basal_rev_states))            
 
         basal_average_state = {node_name: 0 for node_name in node_names}
         transition_average_state = {node_name: 0 for node_name in node_names}
         for state_object in attractor_states_of_basal_rev:
+            if verbose:
+                print("state_object: ")
+                print(state_object)
             iATG_controlled = iATG_module.iATG(dynamics_pyboolnet, IC_basal, IC_transition, fixed_node_and_permanent_control)
             iATG_controlled.set_empty_attractor_landscape_for_each_IC_wo_calculation()
             attractor_landscape_basal_in_controlled = iATG_controlled.attractor_landscape_basal
@@ -410,6 +415,9 @@ class ITP:
 
             attractor_converged = attractor_landscape_basal_in_controlled.converge_network_state_value_to_attractor(state_object)
             attractor_landscape_basal_in_controlled.attractor_index_map[0] = attractor_converged
+            if verbose:
+                print("in the permanenet control, this state converged to attractor")
+                print(attractor_converged.get_average_state())
 
             iATG_controlled.get_attractor_transitions_induced_by_IC_change_and_calculate_TPs()
             num_of_att_in_att_land_basal_in_controlled = len(attractor_landscape_basal_in_controlled.attractor_index_map)
@@ -424,8 +432,14 @@ class ITP:
             # enters the iCA according to the transition process (TP).
             attractor_landscape_basal_in_controlled.attindex_basinratio_map = {i:0 for i in range(num_of_att_in_att_land_basal_in_controlled)}
             attractor_landscape_transition_in_controlled.attindex_basinratio_map = {i:0 for i in range(num_of_att_in_att_land_transition_in_controlled)}
-            attractor_landscape_basal_in_controlled.attindex_basinratio_map[0] = 1
+            attractor_landscape_basal_in_controlled.attindex_basinratio_map[0] = 2
+            # in the method 'find_iCAs_and_calculate_iCA_sizes' basin ratio for each attractor landscape is divided by 2.
+            # to avoid by this division, we set the basin ratio of attractor_converged to 2.
             iATG_controlled.find_iCAs_and_calculate_iCA_sizes()
+            if verbose:
+                print("starting from this newly converged attractor,")
+                print("attractor transitions induce the following iCAs:")
+                iATG_controlled.show_iCAs_and_their_sizes()
 
             basal_average_state_for_att = {node_name: 0 for node_name in node_names}
             transition_average_state_for_att = {node_name: 0 for node_name in node_names}
@@ -434,6 +448,12 @@ class ITP:
                 iCA_size = iCA_object.get_iCA_size()
                 basal_average_state_of_iCA = iCA_object.get_phenotype_score_for_IC("basal")
                 transition_average_state_of_iCA = iCA_object.get_phenotype_score_for_IC("transition")
+
+                if verbose:
+                    print("iCA: ", iCA_object)
+                    print("iCA size: ", iCA_size)
+                    print("basal average state of iCA: ", basal_average_state_of_iCA)
+                    print("transition average state of iCA: ", transition_average_state_of_iCA)
 
                 for node_name in node_names:
                     basal_average_state_for_att[node_name] += iCA_size * basal_average_state_of_iCA[node_name]
@@ -445,6 +465,21 @@ class ITP:
         
         IC_averagestate_map = {"basal": basal_average_state, "transition": transition_average_state}
         return IC_averagestate_map
+    
+    def get_reversibility_induction_score_by_permanent_control(self, permanent_control,
+                                            phenotype_nodes=None):
+        """Calculate the Hamming distance between the phenotype node states of the attractor_basal_irrev in this ITP
+        and the average phenotype node states of 'basal' after applying permanent_control.
+        
+        Also calculate the Hamming distance between the phenotype node states of the attractor_transition in this ITP
+        and the average phenotype node states of 'transition' after applying permanent_control.
+        
+        Return the sum of these two Hamming distances.
+        If phenotype_nodes is None, use the phenotype nodes of this ITP."""
+        
+        IC_averagestate_map = self.get_the_average_state_for_each_IC_by_permanent_control(permanent_control)
+        
+        return self.get_phenotype_score_compared_to_average_state_for_each_IC(IC_averagestate_map, phenotype_nodes)
     
     def get_phenotype_score_compared_to_average_state_for_each_IC(self, 
                                                                       IC_averagestate_map, 

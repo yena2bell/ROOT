@@ -466,7 +466,7 @@ class ITP:
         IC_averagestate_map = {"basal": basal_average_state, "transition": transition_average_state}
         return IC_averagestate_map
     
-    def get_reversibility_induction_score_by_permanent_control(self, permanent_control,
+    def get_reversibility_deficit_score_by_permanent_control(self, permanent_control,
                                             phenotype_nodes=None):
         """Calculate the Hamming distance between the phenotype node states of the attractor_basal_irrev in this ITP
         and the average phenotype node states of 'basal' after applying permanent_control.

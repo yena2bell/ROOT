@@ -380,15 +380,15 @@ class ITP:
     
     def get_the_average_state_for_each_IC_by_permanent_control(self, permanent_control, verbose=False):
         """permanent_control is given as a dictionary in the form of {node: state}.
-        model state가 attractor_basal_rev에 있을 때,
-        시스템에 permanent_control을 적용되면, model state는 새로운 attractor로 수렴한다.
-        이 때, permanent_control이 적용된 상태에서 만들어지는 iATG의 iCAs 중, 
-        model state가 새로이 수렴한 attractor가 attractor transition을 통해 도달하게 되는 iCA를 구한 뒤,
-        이 iCA의 IC별 average state를 구한다.
+        When the model state is in attractor_basal_rev,
+        applying the permanent_control causes the system to converge to a new attractor.
+        From there, we identify the iCA(s) in the iATG (constructed under the permanent_control)
+        that the newly converged attractor would reach via attractor transition.
+        Then, we calculate the average state per input configuration (IC) for those iCAs.
         
-        model state가 새로이 수렴한 attractor가 attractor transition을 통해 도달하게 되는 iCA가 
-        여러개일 경우, iATG의 TP를 이용하여, 각 iCA 별 비중을 정하고 가중평균을 구한다.
-        """
+        If the newly converged attractor leads to multiple iCAs via transition,
+        we use the transition probabilities (TPs) in the iATG to determine the contribution of each iCA,
+        and compute a weighted average accordingly."""
         dynamics_pyboolnet = self.iCA.iATG.dynamics_Boolean_net
         node_names = dynamics_pyboolnet.get_node_names()
         IC_basal = self.iCA.iATG.IC_basal
@@ -445,6 +445,16 @@ class ITP:
         
         IC_averagestate_map = {"basal": basal_average_state, "transition": transition_average_state}
         return IC_averagestate_map
+        
+    @staticmethod
+    def _get_Hamming_distance(state1:dict, state2:dict, nodes_considered):
+        """Calculate the Hamming distance between two states.
+        Only consider the nodes in phenotype_nodes."""
+        distance = 0
+        for node in nodes_considered:
+            distance += abs(state1[node] - state2[node])
+        
+        return distance
 
     def find_reverse_controls(self):
         reverse_controls = []

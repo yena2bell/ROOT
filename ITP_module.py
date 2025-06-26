@@ -445,7 +445,37 @@ class ITP:
         
         IC_averagestate_map = {"basal": basal_average_state, "transition": transition_average_state}
         return IC_averagestate_map
+    
+    def get_phenotype_score_compared_to_average_state_for_each_IC(self, 
+                                                                      IC_averagestate_map, 
+                                                                      phenotype_nodes=None):
+        """Compute the Hamming distance between the phenotype node states 
+        of the attractor_basal_irrev in this ITP 
+        and the average phenotype node states of 'basal' in IC_averagestate_map.
         
+        Also compute the Hamming distance between the phenotype node states 
+        of the attractor_transition in this ITP 
+        and the average phenotype node states of 'transition' in IC_averagestate_map.
+
+        Return the sum of these two Hamming distances.
+        
+        if phenotype_nodes is None,
+        use the phenotype nodes of this ITP."""
+        if phenotype_nodes is None:
+            phenotype_nodes = self.phenotype_nodes
+        
+        attractor_basal_irrev = self._get_attractor_object_using_attr_tuple_form(self.attr_basal_irrev)
+        attractor_transition = self._get_attractor_object_using_attr_tuple_form(self.attr_transition)
+        
+        Hamming_distance_basal = self._get_Hamming_distance(attractor_basal_irrev.get_average_state(),
+                                                            IC_averagestate_map["basal"],
+                                                            phenotype_nodes)
+        Hamming_distance_transition = self._get_Hamming_distance(attractor_transition.get_average_state(),
+                                                                  IC_averagestate_map["transition"],
+                                                                    phenotype_nodes)
+        
+        return Hamming_distance_basal + Hamming_distance_transition
+    
     @staticmethod
     def _get_Hamming_distance(state1:dict, state2:dict, nodes_considered):
         """Calculate the Hamming distance between two states.

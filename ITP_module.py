@@ -376,7 +376,75 @@ class ITP:
             reversion_probability_for_this_state = num_of_states_going_to_basal_irrev / num_of_attractor_converged_after_control_states
             reversion_probability += (reversion_probability_for_this_state / num_of_attractor_basal_rev_states)
         
-        return reversion_probability   
+        return reversion_probability
+    
+    def get_the_average_state_for_each_IC_by_permanent_control(self, permanent_control, verbose=False):
+        """permanent_control is given as a dictionary in the form of {node: state}.
+        model state가 attractor_basal_rev에 있을 때,
+        시스템에 permanent_control을 적용되면, model state는 새로운 attractor로 수렴한다.
+        이 때, permanent_control이 적용된 상태에서 만들어지는 iATG의 iCAs 중, 
+        model state가 새로이 수렴한 attractor가 attractor transition을 통해 도달하게 되는 iCA를 구한 뒤,
+        이 iCA의 IC별 average state를 구한다.
+        
+        model state가 새로이 수렴한 attractor가 attractor transition을 통해 도달하게 되는 iCA가 
+        여러개일 경우, iATG의 TP를 이용하여, 각 iCA 별 비중을 정하고 가중평균을 구한다.
+        """
+        dynamics_pyboolnet = self.iCA.iATG.dynamics_Boolean_net
+        node_names = dynamics_pyboolnet.get_node_names()
+        IC_basal = self.iCA.iATG.IC_basal
+        IC_transition = self.iCA.iATG.IC_transition
+        fixed_node_state_map = self.iCA.iATG.fixed_node_state_map
+        fixed_node_and_permanent_control = {**fixed_node_state_map, **permanent_control}
+
+        attractor_basal_rev_object = self._get_attractor_object_using_attr_tuple_form(self.attr_basal_rev)
+        attractor_states_of_basal_rev = attractor_basal_rev_object.get_attractor_states()
+        num_of_attractor_basal_rev_states = len(attractor_states_of_basal_rev)
+
+        basal_average_state = {node_name: 0 for node_name in node_names}
+        transition_average_state = {node_name: 0 for node_name in node_names}
+        for state_object in attractor_states_of_basal_rev:
+            iATG_controlled = iATG_module.iATG(dynamics_pyboolnet, IC_basal, IC_transition, fixed_node_and_permanent_control)
+            iATG_controlled.set_empty_attractor_landscape_for_each_IC_wo_calculation()
+            attractor_landscape_basal_in_controlled = iATG_controlled.attractor_landscape_basal
+            attractor_landscape_transition_in_controlled = iATG_controlled.attractor_landscape_transition
+
+            attractor_converged = attractor_landscape_basal_in_controlled.converge_network_state_value_to_attractor(state_object)
+            attractor_landscape_basal_in_controlled.attractor_index_map[0] = attractor_converged
+
+            iATG_controlled.get_attractor_transitions_induced_by_IC_change_and_calculate_TPs()
+            num_of_att_in_att_land_basal_in_controlled = len(attractor_landscape_basal_in_controlled.attractor_index_map)
+            num_of_att_in_att_land_transition_in_controlled = len(attractor_landscape_transition_in_controlled.attractor_index_map)
+            
+            # To calculate the proportion of flow from attractor_converged into each iCA,
+            # we use the code for computing iCA_sizes.
+            # At this point, by overwriting the attindex_basinratio_map and 
+            # setting the basin ratio of only attractor_converged to 1,
+            # the size of each iCA corresponds to the proportion of flow 
+            # that originates from attractor_converged and 
+            # enters the iCA according to the transition process (TP).
+            attractor_landscape_basal_in_controlled.attindex_basinratio_map = {i:0 for i in range(num_of_att_in_att_land_basal_in_controlled)}
+            attractor_landscape_transition_in_controlled.attindex_basinratio_map = {i:0 for i in range(num_of_att_in_att_land_transition_in_controlled)}
+            attractor_landscape_basal_in_controlled.attindex_basinratio_map[0] = 1
+            iATG_controlled.find_iCAs_and_calculate_iCA_sizes()
+
+            basal_average_state_for_att = {node_name: 0 for node_name in node_names}
+            transition_average_state_for_att = {node_name: 0 for node_name in node_names}
+            for iCA_object in iATG_controlled.iCAs:
+                iCA_object.set_phenotype_nodes(node_names)
+                iCA_size = iCA_object.get_iCA_size()
+                basal_average_state_of_iCA = iCA_object.get_phenotype_score_for_IC("basal")
+                transition_average_state_of_iCA = iCA_object.get_phenotype_score_for_IC("transition")
+
+                for node_name in node_names:
+                    basal_average_state_for_att[node_name] += iCA_size * basal_average_state_of_iCA[node_name]
+                    transition_average_state_for_att[node_name] += iCA_size * transition_average_state_of_iCA[node_name]
+
+            for node_name in node_names:               
+                basal_average_state[node_name] += basal_average_state_for_att[node_name] / num_of_attractor_basal_rev_states
+                transition_average_state[node_name] += transition_average_state_for_att[node_name] / num_of_attractor_basal_rev_states
+        
+        IC_averagestate_map = {"basal": basal_average_state, "transition": transition_average_state}
+        return IC_averagestate_map
 
     def find_reverse_controls(self):
         reverse_controls = []

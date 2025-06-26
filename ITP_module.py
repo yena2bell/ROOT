@@ -520,6 +520,26 @@ class ITP:
             distance += abs(state1[node] - state2[node])
         
         return distance
+    
+    def get_control_configurations_having_n_control_targets(self, n_nodes=1):
+        """Control candidates consisting of n control target nodes are identified.
+        From the nodes included in the irreversibility motifs, 
+        n nodes are selected as control targets,
+        and each target node is assigned a state opposite to its state in attractor_basal_rev.
+        
+        This process should be performed after the irreversibility kernel has been analyzed."""
+        nodes_in_irreversibility_motifs = set()
+        for irreversibility_motif in self.irreversibility_motifs:
+            nodes_in_irreversibility_motifs.update(irreversibility_motif)
+        
+        control_candidates = []
+        for control_targets in itertools.combinations(nodes_in_irreversibility_motifs, n_nodes):
+            control_candidate = {}
+            for node in control_targets:
+                control_candidate[node] = 1 - self.non_cyclic_part_basal_rev[node]
+                
+            control_candidates.append(control_candidate)
+        return control_candidates
 
     def find_reverse_controls(self):
         reverse_controls = []

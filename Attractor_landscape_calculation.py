@@ -21,7 +21,8 @@ class Attractor_landscape_for_specific_IC:
         self.attractor_index_map = {} #{0:attractor_0, 1:attractor_1,...}
         self.attindex_basinstates_map = {}
         #특정 attractor에 대해 basin으로 밝혀진 network state values의 list를 그 attractor의 index와 mapping
-    
+        self._attindex_basinstates_map_manual_override = None
+
     def __repr__(self):
         return "Attractor landscape for IC {}".format(self.IC)
     
@@ -29,16 +30,20 @@ class Attractor_landscape_for_specific_IC:
     def attindex_basinratio_map(self):
         """self.attindex_basinstates_map에서의 basin의 크기의 비율을 계산하여 return
         각각의 attractor index가 의미하는 attractor는 self.attractor_index_map에서 찾을 수 있다."""
-        attindex_basinsize_map = {index:len(basin) for index, basin in self.attindex_basinstates_map.items()}
-        total_basin_size = sum(attindex_basinsize_map.values())
-        attindex_basinratio_map = {index:basin_size/total_basin_size for index, basin_size in attindex_basinsize_map.items()}
-        return attindex_basinratio_map
+        if self._attindex_basinstates_map_manual_override is None:
+            attindex_basinsize_map = {index:len(basin) for index, basin in self.attindex_basinstates_map.items()}
+            total_basin_size = sum(attindex_basinsize_map.values())
+            attindex_basinratio_map = {index:basin_size/total_basin_size for index, basin_size in attindex_basinsize_map.items()}
+            return attindex_basinratio_map
+        else:
+            #manual override가 있는 경우, 그 값을 return
+            return self._attindex_basinstates_map_manual_override
     
     @attindex_basinratio_map.setter
     def attindex_basinratio_map(self, value):
         """thie setter is needed for method 'get_the_average_state_for_each_IC_by_permanent_control'
         of 'ITP' object."""
-        self.attindex_basinstates_map = value
+        self._attindex_basinstates_map_manual_override = value
     
     @property
     def num_of_states_searched(self):

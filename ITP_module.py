@@ -526,6 +526,9 @@ class ITP:
         From the nodes included in the irreversibility motifs, 
         n nodes are selected as control targets,
         and each target node is assigned a state opposite to its state in attractor_basal_rev.
+
+        Each control candidate must share at least one node with each irreversibility motif 
+        and the set of control targets.
         
         This process should be performed after the irreversibility kernel has been analyzed."""
         nodes_in_irreversibility_motifs = set()
@@ -534,6 +537,15 @@ class ITP:
         
         control_candidates = []
         for control_targets in itertools.combinations(nodes_in_irreversibility_motifs, n_nodes):
+            
+            check_intersection_to_all_motifs = True
+            for irreversibility_motif in self.irreversibility_motifs:
+                if not irreversibility_motif.intersection(control_targets):
+                    check_intersection_to_all_motifs = False
+                    break
+            if not check_intersection_to_all_motifs:
+                continue
+
             control_candidate = {}
             for node in control_targets:
                 control_candidate[node] = 1 - self.non_cyclic_part_basal_rev[node]

@@ -378,11 +378,11 @@ class ITP:
         
         return reversion_probability
     
-    def get_the_average_state_for_each_IC_by_permanent_control(self, permanent_control, verbose=False):
-        """permanent_control is given as a dictionary in the form of {node: state}.
+    def get_the_average_state_for_each_IC_by_applying(self, control_configuration, verbose=False):
+        """control_configuration is given as a dictionary in the form of {node: state}.
         When the model state is in attractor_basal_rev,
-        applying the permanent_control causes the system to converge to a new attractor.
-        From there, we identify the iCA(s) in the iATG (constructed under the permanent_control)
+        applying the control_configuration causes the system to converge to a new attractor.
+        From there, we identify the iCA(s) in the iATG (constructed under the control_configuration)
         that the newly converged attractor would reach via attractor transition.
         Then, we calculate the average state per input configuration (IC) for those iCAs.
         
@@ -394,7 +394,7 @@ class ITP:
         IC_basal = self.iCA.iATG.IC_basal
         IC_transition = self.iCA.iATG.IC_transition
         fixed_node_state_map = self.iCA.iATG.fixed_node_state_map
-        fixed_node_and_permanent_control = {**fixed_node_state_map, **permanent_control}
+        fixed_node_and_control_configuration = {**fixed_node_state_map, **control_configuration}
 
         attractor_basal_rev_object = self._get_attractor_object_using_attr_tuple_form(self.attr_basal_rev)
         attractor_states_of_basal_rev = attractor_basal_rev_object.get_attractor_states()
@@ -408,7 +408,7 @@ class ITP:
             if verbose:
                 print("state_object: ")
                 print(state_object)
-            iATG_controlled = iATG_module.iATG(dynamics_pyboolnet, IC_basal, IC_transition, fixed_node_and_permanent_control)
+            iATG_controlled = iATG_module.iATG(dynamics_pyboolnet, IC_basal, IC_transition, fixed_node_and_control_configuration)
             iATG_controlled.set_empty_attractor_landscape_for_each_IC_wo_calculation()
             attractor_landscape_basal_in_controlled = iATG_controlled.attractor_landscape_basal
             attractor_landscape_transition_in_controlled = iATG_controlled.attractor_landscape_transition
@@ -416,7 +416,7 @@ class ITP:
             attractor_converged = attractor_landscape_basal_in_controlled.converge_network_state_value_to_attractor(state_object)
             attractor_landscape_basal_in_controlled.attractor_index_map[0] = attractor_converged
             if verbose:
-                print("in the permanenet control, this state converged to attractor")
+                print("in the control configuration, this state converged to attractor")
                 print(attractor_converged.get_average_state())
 
             iATG_controlled.get_attractor_transitions_induced_by_IC_change_and_calculate_TPs()
@@ -466,20 +466,21 @@ class ITP:
         IC_averagestate_map = {"basal": basal_average_state, "transition": transition_average_state}
         return IC_averagestate_map
     
-    def get_reversibility_deficit_score_by_permanent_control(self, permanent_control,
+    def get_desired_phenotype_score_for_reversibility_inducing_control(self, control_configuration,
                                             phenotype_nodes=None):
         """Calculate the Hamming distance between the phenotype node states of the attractor_basal_irrev in this ITP
-        and the average phenotype node states of 'basal' after applying permanent_control.
+        and the average phenotype node states of 'basal' after applying control_configuration.
         
         Also calculate the Hamming distance between the phenotype node states of the attractor_transition in this ITP
-        and the average phenotype node states of 'transition' after applying permanent_control.
+        and the average phenotype node states of 'transition' after applying control_configuration.
         
         Return the sum of these two Hamming distances.
         If phenotype_nodes is None, use the phenotype nodes of this ITP."""
         
-        IC_averagestate_map = self.get_the_average_state_for_each_IC_by_permanent_control(permanent_control)
+        IC_averagestate_map = self.get_the_average_state_for_each_IC_by_applying(control_configuration)
         
-        return self.get_phenotype_score_compared_to_average_state_for_each_IC(IC_averagestate_map, phenotype_nodes)
+        desired_phenotype_score = 1/(1+self.get_phenotype_score_compared_to_average_state_for_each_IC(IC_averagestate_map, phenotype_nodes))
+        return desired_phenotype_score
     
     def get_phenotype_score_compared_to_average_state_for_each_IC(self, 
                                                                       IC_averagestate_map, 

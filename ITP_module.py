@@ -536,15 +536,21 @@ class ITP:
         for irreversibility_motif in self.irreversibility_motifs:
             nodes_in_irreversibility_motifs.update(irreversibility_motif)
         
+        nodes_in_coherency_conditions = set()
+        for coherency_condition in self.coherency_conditions:
+            nodes_in_coherency_conditions.update(coherency_condition)
+        
         control_candidates = []
-        for control_targets in itertools.combinations(nodes_in_irreversibility_motifs, n_nodes):
+        for control_targets in itertools.combinations(nodes_in_irreversibility_motifs.union(nodes_in_coherency_conditions), n_nodes):
             
-            check_intersection_to_all_motifs = True
-            for irreversibility_motif in self.irreversibility_motifs:
-                if not irreversibility_motif.intersection(control_targets):
-                    check_intersection_to_all_motifs = False
+            check_intersection_to_all_motifs_or_conditions = True
+            for i, irreversibility_motif in enumerate(self.irreversibility_motifs):
+                coherency_condition = self.coherency_conditions[i]
+                condition_and_motif = irreversibility_motif.union(coherency_condition)
+                if not condition_and_motif.intersection(control_targets):
+                    check_intersection_to_all_motifs_or_conditions = False
                     break
-            if not check_intersection_to_all_motifs:
+            if not check_intersection_to_all_motifs_or_conditions:
                 continue
 
             control_candidate = {}

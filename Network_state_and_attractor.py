@@ -183,10 +183,13 @@ class Attractor:
         """synchronous update로 구한 attractor의 정보를 입력한다.
         각각의 state는 dict로 되어 있으며, 그것이 attractor내 transition 순서에 맞게
         list안에 들어있도록 할 것."""
-        network_states = [Network_state(self.dynamics_pyboolnet).put_state_dict_form(state_dict_form) 
-                                  for state_dict_form in dict_form_network_states_of_attractor]
+        network_states = []
+        for state_dict_form in dict_form_network_states_of_attractor:
+            network_state_obj = Network_state(self.dynamics_pyboolnet)
+            network_state_obj.put_state_dict_form(state_dict_form)
+            network_states.append(network_state_obj)
         #일단 dict form state를 state 객체로 변환한다.
-        self.put_attractor_states_in_synchro_using_state_obj_forms(network_states, perturbation)
+        self.put_attractor_states_in_synchro_using_network_state_forms(network_states, perturbation)
 
 
     #

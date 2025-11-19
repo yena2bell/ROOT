@@ -1,0 +1,6 @@
+CyclinD1,	(GF & (!p21-B) & (Myc | E2F1)) | (Myc & E2F1 & ((!p21-B) | (GF & (CyclinD1 | (!RB)))))
+CyclinE,    E2F1 & (!RB) & (!p27Kip1)
+E2F1,   (!RB) & (E2F1 | Myc)
+Myc,    GF | E2F1
+p27Kip1,    !(CyclinD1 | CyclinE)
+RB, (!CyclinD1) & ((!CyclinE) | p27Kip1)

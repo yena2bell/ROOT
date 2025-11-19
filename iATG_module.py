@@ -116,9 +116,9 @@ class iATG:
         using all network state values.
 
         IC_basal과 IC_transition에 대한 attractor landscape를 모든 network state values를 활용하여 계산한다."""
-        print("Calculating attractor landscape on input configuration {} using all initial states.".format(self.IC_basal))
+        print("\nCalculating attractor landscape on input configuration {} using all initial states.".format(self.IC_basal))
         self.attractor_landscape_basal = self.calculate_attractor_landscape_for_specific_IC_using_all_initials(self.IC_basal)
-        print("Calculating attractor landscape on input configuration {} using all initial states.".format(self.IC_transition))
+        print("\nCalculating attractor landscape on input configuration {} using all initial states.".format(self.IC_transition))
         self.attractor_landscape_transition = self.calculate_attractor_landscape_for_specific_IC_using_all_initials(self.IC_transition)
 
     def calcuate_attractor_landscape_for_each_IC_using_random_initials(self, waiting_num, difference_threshold, verbose):
@@ -126,9 +126,9 @@ class iATG:
         using random initial network state values.
 
         IC_basal과 IC_transition에 대한 attractor landscape를 random initial network state values를 활용하여 계산한다."""
-        print("Calculating attractor landscape on input configuration {} using random initial states.".format(self.IC_basal))
+        print("\nCalculating attractor landscape on input configuration {} using random initial states.".format(self.IC_basal))
         self.attractor_landscape_basal = self.calculate_attractor_landscape_for_specific_IC_using_random_initials(self.IC_basal, waiting_num, difference_threshold, verbose)
-        print("Calculating attractor landscape on input configuration {} using random initial states.".format(self.IC_transition))
+        print("\nCalculating attractor landscape on input configuration {} using random initial states.".format(self.IC_transition))
         self.attractor_landscape_transition = self.calculate_attractor_landscape_for_specific_IC_using_random_initials(self.IC_transition, waiting_num, difference_threshold, verbose)
 
     def set_empty_attractor_landscape_for_each_IC_wo_calculation(self):

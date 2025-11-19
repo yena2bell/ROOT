@@ -50,6 +50,9 @@ class ITP:
         self.pheno_transition = {phenonode:averstate for phenonode, averstate in attractor_transition.get_average_state().items() if phenonode in self.phenotype_nodes}
         self.pheno_basal_rev = {phenonode:averstate for phenonode, averstate in attractor_basal_rev.get_average_state().items() if phenonode in self.phenotype_nodes}
 
+    def reset_the_info_of_irreversibility_kernel(self):
+        self.irreversibility_motifs = []
+        self.coherency_conditions = []
 
     def get_phenotype_score(self):
         print("attractor_basal_irrev: ", self.pheno_basal_irrev)
@@ -327,7 +330,7 @@ class ITP:
     def _get_info_of_expanded_node(self, expanded_node_name):
         return self._get_expanded_network().nodes()[expanded_node_name]['info']
     
-    def get_the_reversion_probability_for_resetting_control(self, control_configuration, verbose=False):
+    def get_resetting_efficacy_score_of(self, control_configuration, verbose=False):
         """control configuration is given as a dictionary in the form of {node: state}.
         When the model state is in attractor_basal_rev, 
         the system applies the control configuration to let the state converge to a new attractor. 
@@ -466,8 +469,8 @@ class ITP:
         IC_averagestate_map = {"basal": basal_average_state, "transition": transition_average_state}
         return IC_averagestate_map
     
-    def get_desired_phenotype_score_for_reversibility_inducing_control(self, control_configuration,
-                                            phenotype_nodes=None):
+    def get_reversing_efficacy_score_of(self, control_configuration,
+                                        phenotype_nodes=None):
         """Calculate the Hamming distance between the phenotype node states of the attractor_basal_irrev in this ITP
         and the average phenotype node states of 'basal' after applying control_configuration.
         
@@ -522,7 +525,7 @@ class ITP:
         
         return distance
     
-    def get_control_configurations_having_n_control_targets(self, n_nodes=1):
+    def get_control_strategiess_having_n_control_targets(self, n_nodes=1):
         """Control candidates consisting of n control target nodes are identified.
         From the nodes included in the irreversibility motifs, 
         n nodes are selected as control targets,

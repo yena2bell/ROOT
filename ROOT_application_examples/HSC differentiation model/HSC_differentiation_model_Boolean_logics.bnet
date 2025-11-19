@@ -1,0 +1,20 @@
+Runx1, (PU1 | GATA2 | Runx1) & !Ikzf1
+Meis1, (Meis1 | Runx1 | PU1) & !Gfi1
+HIF1, (!Oxygen & O2minus & !(p53 | FOXO3 | AMPK)) | (!Oxygen & Meis1)
+FOXO3, (AMPK & (HIF1 | p53)) & !(AKT | CEBPA)
+p53, HIF1 & !(AKT | GATA1 | PU1)
+GATA2, (GATA2 | p53) & !(GATA1 | PU1 | Gfi1)
+GATA1, (GATA1 | GATA2 | AKT | Runx1) & !(PU1 | p53 | Ikzf1)
+PU1, (PU1 | Runx1 | (CEBPA & Ikzf1)) & !(GATA1 | GATA2 | Gfi1)
+CEBPA, (PU1 & Runx1) & !Mef2c
+Ikzf1, (Mef2c | Ikzf1 | Runx1) & !(CEBPA | PU1 | GATA1)
+Gfi1, (Ikzf1 | CEBPA) & !(PU1 | p53)
+Mef2c, PU1 & !CEBPA
+mTOR, AKT & !(AMPK & p53)
+AMPK, p53 & !(AKT | OXPHOS | HIF1)
+AKT, H2O2 | !(p53 | FOXO3)
+H2O2, (GATA1 | HIF1 | PU1 | OXPHOS | (SOD & O2minus)) & !Antiox
+O2minus, !SOD | OXPHOS
+Antiox, p53 | FOXO3
+OXPHOS, (mTOR | AKT) & !(FOXO3 | HIF1)
+SOD, p53 | FOXO3

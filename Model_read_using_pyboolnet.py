@@ -1,6 +1,6 @@
 import os
 
-#pyboolnet.VERSION ==  3.0.11 사용.
+#pyboolnet.VERSION ==  3.0.11
 from pyboolnet.file_exchange import bnet2primes, primes2bnet
 import pyboolnet
 
@@ -20,9 +20,11 @@ class Dynamics_pyBoolnet:
         self.nodes = sorted(list(self.primes.keys()))
 
     def get_primes(self, reduction=True, perturbations={}):
-        """primes 를 return한다.
-        reduction==True이면 이미 값이 고정되어 있는 것들에 대해, LDOI 계산 후,
-        그것들을 제외한 logic 을 return"""
+        """Returns the primes.
+
+        If reduction == True, after computing the LDOI, 
+        the logic associated with nodes whose values are already fixed 
+        is excluded from the returned result."""
         primes_perturbed = pyboolnet.prime_implicants.percolate(self.primes,
                                                                 add_constants=perturbations, 
                                                                 remove_constants=reduction,
@@ -32,14 +34,16 @@ class Dynamics_pyBoolnet:
         return primes_perturbed
 
     def get_node_names(self):
-        """network 가 가지는 모든 nodes의 name 을 list에 담아서
-        return한다."""
+        """return all nodes in the network model as a list form"""
         return self.nodes
     
     def get_source_node_names(self):
-        """primes 가 'n1': [[{'n1': 0}], [{'n1': 1}]] 형태인 것을 골라서 
-        list 형태로 return한다. source nodes를 골라내는 용도이지만 perturbed model에서도
-        잘 작동할 지 확신할 수 없음."""
+        """Returns the source nodes as a list.
+        
+        A node is considered a source node if its primes value is of the form:
+        [[{'n1': 0}], [{'n1': 1}]] for node 'n1'.
+        
+        Needs further review to ensure correct behavior under perturbed models."""
         source_node_names = []
         for nodename, prime in self.primes.items():
             if prime[0] == [{nodename:0}]:
@@ -49,9 +53,10 @@ class Dynamics_pyBoolnet:
         return source_node_names
     
     def print_cytoscape_file(self):
-        """cytoscape에서 네트워크를 보여주는 용도의 파일을 text로 return한다.
+        """Returns a text-formatted file used for visualizing the network in Cytoscape.
         
-        각 속성(key)에 따른 node의 상태값을 추가로 적어주는 기능을 추가하기."""
+        Functionality to append state values for each node according to its attributes (keys) will be added later.
+        """
         nx_net = pyboolnet.interaction_graphs.primes2igraph(self.primes)
         edges_txt = "source\ttarget\tmodality\n"
         for edge in nx_net.edges:
@@ -66,11 +71,11 @@ class Dynamics_pyBoolnet:
         return edges_txt
     
     def get_edges_with_modalities(self, node_cut=[], ignore_self_loop_on_source_nodes=True):
-        """primes 정보를 활용하여 links를 추출.
-        각 link는 (source, modality, target)으로 구성된 tuple이고,
-        이러한 tuple로 구성된 list를 return
+        """Extracts edge information using the primes data and returns it as a list.
+        Each edge is represented as a tuple (source, modality, target).
         
-        node_cut에 들어있는 node의 경우 그 node가 포함된 links는 제외하고 return"""
+        Edges involving any node included in `node_cut` are excluded from the result.
+        """
         links = []
         for target_node, prime_implicant in self.primes.items():
             if target_node in node_cut:

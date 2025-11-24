@@ -274,16 +274,12 @@ class Attractor_landscape_for_specific_IC:
             else:
                 trajectory.append(network_state_value_next)
     
-    def converge_network_state_value_to_attractor(self, network_state_value:Network_state):
+    def converge_network_state_to_attractor(self, network_state:Network_state):
         """Return the attractor reached as a result of network state transitions 
         from the given network state value, 
-        under the input configuration and fixed node state map of this attractor landscape.
-        
-        주어진 network state value로부터, 
-        이 attractor landscape의 input configuration과 fixed node state map 상태에서 
-        network state transition의 결과 도달하는 attractor 를 return한다. """
-        trajectory, network_state_value_next = self._calculate_trajectory_and_check(network_state_value, [])
-        return self._make_new_attractor_from_trajectory(trajectory, network_state_value_next)
+        under the input configuration and fixed node state map of this attractor landscape."""
+        trajectory, network_state_next = self._calculate_trajectory_and_check(network_state, [])
+        return self._make_new_attractor_from_trajectory(trajectory, network_state_next)
 
     
     def _make_new_attractor_from_trajectory(self, trajectory, network_state_value_next):

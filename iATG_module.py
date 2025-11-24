@@ -6,14 +6,10 @@ from iCA_module import iCA
 from Expanded_net_analysis import make_expanded_net_using_dynamics_pyboolnet
 
 class iATG:
-    """To construct the input configuration change-derived attractor transition graph (iATG), 
+    """To construct the input configuration change attractor transition graph (iATG), 
     a specific Boolean network must be given, 
-    along with a basal input configuration (IC_basal) 
-    and a transition input configuration (IC_transition).
-    
-    input configuration change-derived attractor transition graph (iATG)
-    이것을 구축하기 위해서는 특정한 Boolean network가 주어지고,
-    basal input configuration(IC_basal)과 transition input configuration(IC_transition)이 주어져야 한다."""
+    along with transition-determining input configurations 
+    (a basal input configuration (IC_basal) and a transition input configuration (IC_transition))."""
     def __init__(self, dynamics_Boolean_net:"Dynamics_pyBoolnet", 
                  IC_basal:dict, IC_transition:dict,
                  fixed_node_state_map:dict={}):
@@ -37,9 +33,17 @@ class iATG:
         self.iCAs = []
         self.expanded_net = None
         self.indexes_of_iCAs_descending_order = None
-        self.major_iCAs = []
+        # self.major_iCAs = []
 
     def get_attr_tuple_forms(self, get_only_specific_IC=None):
+        """Collects the attractors computed in `self.attractor_landscape_basal` and
+        `self.attractor_landscape_transition`, converts each attractor into a tuple
+        representation, and returns them as a list.
+
+        If the index of an attractor in `self.attractor_landscape_basal` is given,
+        its tuple form becomes ("basal", index).
+        If the index refers to an attractor in `self.attractor_landscape_transition`,
+        its tuple form becomes ("transition", index)."""
         attr_tuple_forms_basal = [("basal", index) for index in self.attractor_landscape_basal.attractor_index_map.keys()]
         attr_tuple_forms_transition = [("transition", index) for index in self.attractor_landscape_transition.attractor_index_map.keys()]
         if get_only_specific_IC == "basal":
@@ -51,6 +55,8 @@ class iATG:
 
 
     def get_attractor_using_attr_tuple_form(self, attr_tuple_form):
+        """Given an attractor expressed in the tuple form returned by `get_attr_tuple_forms` function,
+        this function uses that tuple to retrieve and return the corresponding attractor object."""
         IC, index = attr_tuple_form
         if IC == "basal":
             return self.attractor_landscape_basal.attractor_index_map[index]
@@ -65,27 +71,24 @@ class iATG:
     def set_phenotype_nodes(self, phenotype_nodes):
         self.phenotype_nodes = phenotype_nodes
 
-    def get_phenotype_score_for_IC(self, IC:"basal or transition", iCA_to_consider=[]):
-        """Calculates the phenotype score of this iATG for a given input configuration.
-        iCA_to_consider에 속한 iCA만 고려하여 phenotype score를 계산한다.
-        단, iCA_to_consider가 비어있으면 모든 iCA를 고려한다.
-        """
-        if not iCA_to_consider:
-            iCA_to_consider = self.iCAs
+    # def get_phenotype_score_for_IC(self, IC:"basal or transition", iCA_to_consider=[]):
+    #     """Calculates the phenotype score of this iATG for a given input configuration."""
+    #     if not iCA_to_consider:
+    #         iCA_to_consider = self.iCAs
         
-        phenotype_score_for_IC = {phenonode:0 for phenonode in self.phenotype_nodes}
-        size_sum = 0
-        for ica in iCA_to_consider:
-            phenotype_score_for_IC_of_ica = ica.get_phenotype_score_for_IC(IC)
-            for phenonode in self.phenotype_nodes:
-                phenotype_score_for_IC[phenonode] += phenotype_score_for_IC_of_ica[phenonode]*ica.size
-            size_sum += ica.size
+    #     phenotype_score_for_IC = {phenonode:0 for phenonode in self.phenotype_nodes}
+    #     size_sum = 0
+    #     for ica in iCA_to_consider:
+    #         phenotype_score_for_IC_of_ica = ica.get_phenotype_score_for_IC(IC)
+    #         for phenonode in self.phenotype_nodes:
+    #             phenotype_score_for_IC[phenonode] += phenotype_score_for_IC_of_ica[phenonode]*ica.size
+    #         size_sum += ica.size
         
-        for phenonode in self.phenotype_nodes:
-            phenotype_score_for_IC[phenonode] /= size_sum
+    #     for phenonode in self.phenotype_nodes:
+    #         phenotype_score_for_IC[phenonode] /= size_sum
             
         
-        return phenotype_score_for_IC
+    #     return phenotype_score_for_IC
 
 
     def calculate_attractor_landscapes_for_each_IC(self, use_all_initials=True,
@@ -95,27 +98,18 @@ class iATG:
         """"Calculate the attractor landscape for IC_basal and IC_transition.
         If use_all_initials=True, the attractor landscape is computed using all initial network state values.
         Otherwise, random initial network state values are used.
-        In this case, waiting_num and difference_threshold are utilized.
-        
-        IC_basal과 IC_transition에 대한 attractor landscape를 계산한다.
-        이 때, use_all_initials=True이면 모든 initial network state values를 사용하여 attractor landscape를 계산한다.
-        그렇지 않으면 random initial network state values를 사용하여 attractor landscape를 계산한다.
-        이때, waiting_num과 difference_threshold를 활용한다."""
+        In this case, waiting_num and difference_threshold are utilized."""
         if use_all_initials:
             print("Calculating attractor landscapes using all initial states.")
             self.calculate_attractor_landscapes_for_each_IC_using_all_initials()
         else:
-            # 이 경우에는 모든 attractors 를 다른 package에서 계산하고,
-            # 그 결과를 이용하여 attractor landscape를 approximation 기반으로 계산하는 걸로 하자.
             print("Calculating attractor landscapes using random initial states.")
             self.calcuate_attractor_landscape_for_each_IC_using_random_initials(waiting_num, difference_threshold, verbose)
             pass
     
     def calculate_attractor_landscapes_for_each_IC_using_all_initials(self):
         """Calculate the attractor landscape for IC_basal and IC_transition 
-        using all network state values.
-
-        IC_basal과 IC_transition에 대한 attractor landscape를 모든 network state values를 활용하여 계산한다."""
+        using all network state values."""
         print("\nCalculating attractor landscape on input configuration {} using all initial states.".format(self.IC_basal))
         self.attractor_landscape_basal = self.calculate_attractor_landscape_for_specific_IC_using_all_initials(self.IC_basal)
         print("\nCalculating attractor landscape on input configuration {} using all initial states.".format(self.IC_transition))
@@ -123,15 +117,14 @@ class iATG:
 
     def calcuate_attractor_landscape_for_each_IC_using_random_initials(self, waiting_num, difference_threshold, verbose):
         """Calculate the attractor landscape for IC_basal and IC_transition 
-        using random initial network state values.
-
-        IC_basal과 IC_transition에 대한 attractor landscape를 random initial network state values를 활용하여 계산한다."""
+        using random initial network state values."""
         print("\nCalculating attractor landscape on input configuration {} using random initial states.".format(self.IC_basal))
         self.attractor_landscape_basal = self.calculate_attractor_landscape_for_specific_IC_using_random_initials(self.IC_basal, waiting_num, difference_threshold, verbose)
         print("\nCalculating attractor landscape on input configuration {} using random initial states.".format(self.IC_transition))
         self.attractor_landscape_transition = self.calculate_attractor_landscape_for_specific_IC_using_random_initials(self.IC_transition, waiting_num, difference_threshold, verbose)
 
     def set_empty_attractor_landscape_for_each_IC_wo_calculation(self):
+        """this function is used for reversing control"""
         self.attractor_landscape_basal = Attractor_landscape_for_specific_IC(self.dynamics_Boolean_net, self.IC_basal, self.fixed_node_state_map)
         self.attractor_landscape_transition = Attractor_landscape_for_specific_IC(self.dynamics_Boolean_net, self.IC_transition, self.fixed_node_state_map)
 
@@ -150,6 +143,9 @@ class iATG:
         return attractor_landscape_for_IC
     
     def get_TP_for_attractor_transition_induced_by_IC_change(self, attr_source_tuple_form, attr_target_tuple_form):
+        """When the transition probabilities between the vertices of the iATG
+        have already been computed, this function selects and returns the
+        transition probability between specific attractors."""
         TPs_from_source_attractor = self.TPs[attr_source_tuple_form]
         TP = TPs_from_source_attractor.get(attr_target_tuple_form, 0)
         return TP
@@ -160,7 +156,7 @@ class iATG:
         Then, calculate the transition probabilities."""
         #initialize
         self.attractor_transitions_induced_by_IC_change = []
-        self.TPs = {}
+        self.TPs = {} # transition probabilities
         num_of_attractors_in_IC_basal = len(self.attractor_landscape_basal.attractor_index_map)
         num_of_attractors_in_IC_transition = len(self.attractor_landscape_transition.attractor_index_map)
 
@@ -248,7 +244,7 @@ class iATG:
 
         for attractor_state in attractor.attractor_states:
             attractor_state_IC_changed = attractor_state.apply_perturbation(IC_of_target, True)
-            target_attractor = attractor_landscape_of_target.converge_network_state_value_to_attractor(attractor_state_IC_changed)
+            target_attractor = attractor_landscape_of_target.converge_network_state_to_attractor(attractor_state_IC_changed)
             target_attractor_index = attractor_landscape_of_target.get_attractor_index_from_attractor(target_attractor)
 
             attractor_transition_induced_by_IC_change = ((IC_of_source, source_attractor_index),(IC_of_target, target_attractor_index))
@@ -257,7 +253,7 @@ class iATG:
         return attractor_transitions_induced_by_IC_change
 
     def find_iCAs_and_calculate_iCA_sizes(self):
-        """find input configuration change-derived converged attractors (iCAs)
+        """find input configuration change converged attractors (iCAs)
         iCA is a SCC in iATG.
         before find this, self.attractor_transitions_induced_by_IC_change should be calculated.
         
@@ -308,26 +304,25 @@ class iATG:
                                 for cell, width in zip(row, col_widths)))
             print("-" * (sum(col_widths) + 3 * (len(col_widths) - 1)))  # Print separator
     
-    def select_major_iCAs_according_to_threshold(self, threshold=1):
-        """Selects iCAs in descending order of iCA size 
-        until the cumulative sum of iCA sizes reaches or exceeds the threshold.
-        The selected iCAs are defined as major iCAs."""
-        if self.indexes_of_iCAs_descending_order is None:
-            self.indexes_of_iCAs_descending_order = sorted(range(len(self.iCAs)), key=lambda i: self.iCAs[i].get_iCA_size(), reverse=True)
+    # def select_major_iCAs_according_to_threshold(self, threshold=1):
+    #     """Selects iCAs in descending order of iCA size 
+    #     until the cumulative sum of iCA sizes reaches or exceeds the threshold.
+    #     The selected iCAs are defined as major iCAs."""
+    #     if self.indexes_of_iCAs_descending_order is None:
+    #         self.indexes_of_iCAs_descending_order = sorted(range(len(self.iCAs)), key=lambda i: self.iCAs[i].get_iCA_size(), reverse=True)
             
-        cumulative_sum_of_iCA_sizes = 0
-        for ica_index in self.indexes_of_iCAs_descending_order:
-            ica = self.iCAs[ica_index]
-            cumulative_sum_of_iCA_sizes += ica.get_iCA_size()
-            self.major_iCAs.append(ica)
-            if cumulative_sum_of_iCA_sizes >= threshold:
-                break
+    #     cumulative_sum_of_iCA_sizes = 0
+    #     for ica_index in self.indexes_of_iCAs_descending_order:
+    #         ica = self.iCAs[ica_index]
+    #         cumulative_sum_of_iCA_sizes += ica.get_iCA_size()
+    #         self.major_iCAs.append(ica)
+    #         if cumulative_sum_of_iCA_sizes >= threshold:
+    #             break
 
         
 
     def _calculate_iCA_size_and_steady_state_probabilities(self):
-        """Calculate the size of each iCA.
-        the pseudocode is in the supplementary materials of corresponding paper."""
+        """Calculate the size of each iCA."""
         #initialize the basin_ratio_now and basin_ratio_tmp for each attractor in iATG
         basin_ratios_now = {}
         basin_ratios_tmp = {}

@@ -362,14 +362,14 @@ class ITP:
             if verbose:
                 print("state_object: ")
                 print(state_object)
-            attractor_object_under_control = attractor_landscape_controlled.converge_network_state_value_to_attractor(state_object)
+            attractor_object_under_control = attractor_landscape_controlled.converge_network_state_to_attractor(state_object)
             attractor_states_converged_after_control = attractor_object_under_control.get_attractor_states()
             num_of_attractor_converged_after_control_states = len(attractor_states_converged_after_control)
             if verbose:
                 print("this state converges to attractor with {} states after applying the temporary control".format(num_of_attractor_converged_after_control_states))
             num_of_states_going_to_basal_irrev = 0
             for state_converged_after_control in attractor_states_converged_after_control:
-                attractor_object_after_removing_control = attractor_landscape_wo_control.converge_network_state_value_to_attractor(state_converged_after_control)
+                attractor_object_after_removing_control = attractor_landscape_wo_control.converge_network_state_to_attractor(state_converged_after_control)
                 if attractor_object_after_removing_control == attractor_basal_irrev_object:
                     num_of_states_going_to_basal_irrev += 1
                     if verbose:
@@ -416,7 +416,7 @@ class ITP:
             attractor_landscape_basal_in_controlled = iATG_controlled.attractor_landscape_basal
             attractor_landscape_transition_in_controlled = iATG_controlled.attractor_landscape_transition
 
-            attractor_converged = attractor_landscape_basal_in_controlled.converge_network_state_value_to_attractor(state_object)
+            attractor_converged = attractor_landscape_basal_in_controlled.converge_network_state_to_attractor(state_object)
             attractor_landscape_basal_in_controlled.attractor_index_map[0] = attractor_converged
             if verbose:
                 print("in the control configuration, this state converged to attractor")

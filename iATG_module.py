@@ -290,8 +290,8 @@ class iATG:
             cumulative_sum_of_iCA_sizes += ica.get_iCA_size()
             row_of_ica.append("{:.3f}".format(cumulative_sum_of_iCA_sizes))
             row_of_ica.append(str(ica.attractors_in_iCA).strip('[]'))
-            row_of_ica.append(str(ica.get_phenotype_score_for_IC('basal')))
-            row_of_ica.append(str(ica.get_phenotype_score_for_IC('transition')))
+            row_of_ica.append(str(ica.get_phenotype_for_IC('basal')))
+            row_of_ica.append(str(ica.get_phenotype_for_IC('transition')))
             
             data.append(row_of_ica)
 

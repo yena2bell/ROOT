@@ -59,24 +59,24 @@ class iCA:
         for i, attr_tuple_form in enumerate(self.attractors_in_iCA):
             self.attractor_steadystateprob_map[attr_tuple_form] = steady_state_probabilites[i]
     
-    def get_phenotype_score_for_IC(self, IC:"basal or transition"):
-        """Calculates the phenotype score of this iCA for a given input configuration.
+    def get_phenotype_for_IC(self, IC:"basal or transition"):
+        """Calculates the phenotype of this iCA for a given input configuration.
         To obtain this, the '_calculate_steady_state_probabilities' method must be executed first.
 
         Among the attractors belonging to this iCA, the attractor associated with the given IC is selected.
-        For each such attractor, the phenotype score is determined by computing the average node state value of the phenotype node.
-        Finally, the phenotype scores of all selected attractors are weighted by their steady-state probabilities and averaged.
+        For each such attractor, the phenotype is determined by computing the average node state value of the phenotype node.
+        Finally, the phenotypes of all selected attractors are weighted by their steady-state probabilities and averaged.
         """
-        attractor_phenotype_score_map = {}
+        attractor_phenotype_map = {}
         for attr_tuple_form in self.attractors_in_iCA:
             if attr_tuple_form[0] == IC:
                 attractor = self.iATG.get_attractor_using_attr_tuple_form(attr_tuple_form)
                 phenotypenode_average_map_of_attr = {phenonode:averstate for phenonode, averstate in attractor.get_average_state().items() if phenonode in self.phenotype_nodes}
-                attractor_phenotype_score_map[attr_tuple_form] = phenotypenode_average_map_of_attr
+                attractor_phenotype_map[attr_tuple_form] = phenotypenode_average_map_of_attr
         
         phenotypenode_average_map = {phenonode:0 for phenonode in self.phenotype_nodes}
         sum_of_steadystate_probs = 0
-        for attr_tuple_form, phenotypenode_average_map_of_attr in attractor_phenotype_score_map.items():
+        for attr_tuple_form, phenotypenode_average_map_of_attr in attractor_phenotype_map.items():
             steady_state_prob_of_attr = self.attractor_steadystateprob_map[attr_tuple_form]
             sum_of_steadystate_probs += steady_state_prob_of_attr
             for phenonode, averstate in phenotypenode_average_map_of_attr.items():
@@ -90,7 +90,7 @@ class iCA:
 
     def search_ITPs(self):
         """This searches for irreversible transition paths (ITPs) that converge to this iCA.
-        An ITP is a path consisting of three nodes (attractors) in the iATG, where:
+        An ITP is a path consisting of three vertices (attractors) in the iATG, where:
 
             The starting attractor is called attractor_basal_irrev.
             The next attractor is called attractor_transition.

@@ -449,8 +449,8 @@ class ITP:
             for iCA_object in iATG_controlled.iCAs:
                 iCA_object.set_phenotype_nodes(node_names)
                 iCA_size = iCA_object.get_iCA_size()
-                basal_average_state_of_iCA = iCA_object.get_phenotype_score_for_IC("basal")
-                transition_average_state_of_iCA = iCA_object.get_phenotype_score_for_IC("transition")
+                basal_average_state_of_iCA = iCA_object.get_phenotype_for_IC("basal")
+                transition_average_state_of_iCA = iCA_object.get_phenotype_for_IC("transition")
 
                 if verbose:
                     print("iCA: ", iCA_object)
@@ -656,7 +656,7 @@ class ITP:
             raise ValueError("The attractor_basal_irrev in the controlled iATG is not contained in iCA.")
         
         ica.set_phenotype_nodes(phenotype_nodes)
-        phenotype_of_ica_in_IC_transition_in_controlled = ica.get_phenotype_score_for_IC("transition")
+        phenotype_of_ica_in_IC_transition_in_controlled = ica.get_phenotype_for_IC("transition")
         phenotype_of_ica_in_IC_transition_in_controlled = {phenonode:averstate for phenonode, averstate in phenotype_of_ica_in_IC_transition_in_controlled.items() if averstate in (0,1)}
         #phenotype 에서 non-cyclic 부분만 골라낸다.
 

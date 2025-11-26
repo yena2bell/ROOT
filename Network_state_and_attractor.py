@@ -1,8 +1,6 @@
 class Network_state:
-    """기본적으로 state를 int form으로 저장하지만, 
-    그것을 본래의 state form으로 바꾸는 것을 이 class의 method가 전부 처리하도록.
-    
-    network state가 가지는 구체적인 값은 network state value라고 부른다."""
+    """network state is saved as an int format.
+    conversion from int format to other format is done by this class methods."""
     def __init__(self, dynamics_pyboolnet):
         self.dynamics_pyboolnet = dynamics_pyboolnet
         self.state_int_form = None
@@ -11,32 +9,36 @@ class Network_state:
         return "model state {}".format(self.get_state_dict_form())
     
 
+
     #
-    # 이 함수들은 state 값을 이 state 객체에 넣고 빼는 용도이다.
-    # state 객체는 state를 int 값으로 변환해서 저장하기 때문에,
-    # 우리에게 익숙한 형태의 state를 객체에 저장하거나,
-    # 객체의 state 정보를 익숙한 형태로 얻어내려면 이 함수들을 사용한다.
+    # These functions are used to insert and extract state values from this state object.
+    # Since the state object stores network states by converting them into an integer,
+    # these functions are required when storing a state in a familiar format
+    # or retrieving the state information from the object in a familiar format.
     #
     def get_state_dict_form(self):
         return self._convert_int_form_to_dict_form(self.dynamics_pyboolnet, self.state_int_form)
     
     def put_state_int_form(self, int_form):
-        """이 함수를 통해 값을 입력할 경우, 이 int form은 이 class의 cls method를 통해 구할 것."""
+        """ when this method is used, the 'inf_form' should be achieved by methods in this class"""
         self.state_int_form = int_form
     
     def put_state_list_form(self, list_form):
-        """state는 self.dynamics_pyboolnet.get_node_names()의 node 순서에 대응된다.""" 
+        """The list_form represents a list containing the state values of the nodes.
+        These node state values must be ordered according to the node sequence
+        defined in `self.dynamics_pyboolnet.get_node_names()`.""" 
         self.state_int_form = self._convert_list_form_to_int_form(list_form)
 
     def put_state_dict_form(self, dict_form):
         self.state_int_form = self._convert_dict_form_to_int_form(self.dynamics_pyboolnet, dict_form)
 
     #
-    # state 객체에, 그 state에 perturbation (temporal perturbation)을 가하여
-    # 특정 node의 state를 원하는 값으로 바꾸어 놓는데 사용하는 함수들이다.
+    # These functions apply perturbations to the state object,
+    # modifying the state of specific nodes to the desired values.
+    # The network state is altered by the perturbation, but it is not fixed permanently.
     #
     def apply_perturbation(self, perturbation:{}, make_new_obj=False):
-        """make_new_obj이 True면, 현재 state에 perturbation을 반영한 새로운 obj을 형성하여 return """
+        """if 'make_new_obj' is True, new network state object with perturbed state is made and returned"""
         dict_form_state = self.get_state_dict_form()
         dict_form_after_perturbation = self.apply_perturbation_to_dict_form_state(dict_form_state, perturbation)
         if make_new_obj:
@@ -48,7 +50,7 @@ class Network_state:
 
     @classmethod
     def apply_perturbation_to_dict_form_state(cls, dict_form, perturbation:{}):
-        """주어진 dict_form에 fixed_node_state_map 을 덧씌워서 return"""
+        """dict_form is copied, and overrided by perturbation, then returned."""
         dict_form_with_perturbation = dict_form.copy()
         for node, state in perturbation.items():
             dict_form_with_perturbation[node] = state
@@ -56,11 +58,11 @@ class Network_state:
     
 
     #
-    # 일단 각 state를 int 형태로 변환하여 저장해놓는다. 그러나 필요할 때, 
-    # 여기의 convert 함수들을 사용하여 dict form이나 list form으로 변환하여 쓸 수 있다.
-    # dict form의 경우는 {node명: state 값}의 형태로 이루어짐
-    # list form의 경우는 [state값1, state값2,,,] 형태이며, 
-    # 이 list form의 i번째 state는 dynamics_pyboolnet의 get_node_names method의 결과물의 i번째 node의 state를 의미한다.
+    # First, each state is stored as its integer representation. 
+    # When needed, you can convert it to a dict form or list form using the convert functions here.
+    # The dict form is structured as {node_name: state_value, ...}.
+    # The list form is [state1, state2, ...], where the i-th element corresponds
+    # to the state of the i-th node returned by dynamics_pyboolnet.get_node_names().
     #
     @classmethod
     def _convert_int_form_to_dict_form(cls, dynamics_pyboolnet, int_form):
@@ -94,11 +96,11 @@ class Network_state:
         return cls._convert_list_form_to_int_form(list_form)
     
     #
-    # 이 magic methods들은 state 객체들 사이의 int 변환 값들의 대소를 비교하기 위한 methods이다.
-    # 이는, 뒤에 이 states를 list에 bisect 함수를 사용하여 저장할 수 있게 하는것으로
-    # 새로운 state객체가 이미 찾아진 states list 안에 이미 있는지 확인하는 것을 쉽게 해준다.
+    # These magic methods are used to compare the integer-converted values
+    # between state objects. This allows us to store states in a list using
+    # the bisect function, making it easy to check whether a newly created
+    # state object already exists in the list of discovered states.
     #
-    
     def __eq__(self, int_form_or_obj):
         if isinstance(int_form_or_obj,Network_state):
             return self.state_int_form == int_form_or_obj.state_int_form
@@ -131,16 +133,15 @@ class Network_state:
         
 
 class Attractor:
-    """주어진 model의 attractor 정보를 저장하는 객체
-    synchronous update를 가정함"""
+    """object of this class save the information of attractor.
+    in here, the attractor emerged from synchronous update model."""
     def __init__(self, dynamics_pyboolnet):
         self.dynamics_pyboolnet = dynamics_pyboolnet
-        self.attractor_states = []
-        #여기 들어가는 것은 위의 Network_state 객체들
+        self.attractor_states = [] # elements of this list become Network_state objects
         self.perturbation = {}
 
     #
-    # attractor에 대한 정보를 얻는데 사용하는 함수들을 모아놓음.
+    # methods to get information from this attractor object
     #
     def is_point_attractor(self):
         return len(self.attractor_states) == 1
@@ -153,7 +154,8 @@ class Attractor:
         return self.attractor_states
     
     def get_average_state(self):
-        """각 node에 대해서, state의 평균을 구한 뒤, dict로 return"""
+        """For each node in the network model, compute the average of its state values
+        across all network states in the attractor. Return the result as a dict."""
         node_statesum = {}
         for network_state in self.attractor_states:
             dict_form = network_state.get_state_dict_form()
@@ -164,44 +166,48 @@ class Attractor:
         return node_averagestate
     
     #
-    # 이 attractor 객체에 정보를 넣는데 사용하는 methods 모음.
+    # These methods are used to insert the attractor information
     #
     def put_attractor_states_in_synchro_using_network_state_forms(self, network_states_of_attractor=[], 
                                                               perturbation={}):
-        """synchronous update로 구한 attractor의 정보를 입력한다.
-        이 때 각 state는 Network_state 객체로 되어 있으며, 그것이 attractor 내 transition 순서에 맞게 
-        list 안에 들어있도록 할 것."""
+        """insert attractor information obtained from a synchronous update.
+        Each network state must be a Network_state object, stored in a list
+        in the exact transition order within the attractor."""
         self.update_type = "synchronous"
         self.perturbation = perturbation.copy()
 
         first_state_in_cycle = network_states_of_attractor.index(min(network_states_of_attractor))
         self.attractor_states = network_states_of_attractor[first_state_in_cycle:] + network_states_of_attractor[:first_state_in_cycle]
-        #같은 cyclic attractor이면 list의 시작 state가 같게 만드려고 함.
-        #state 중, int form으로 변환했을 때 그 값이 가장 작은 state기 list의 가장 처음에 오도록 한다.
+        # A cyclic attractor stores multiple network state objects in self.attractor_states.
+        # Depending on which network state is stored first, the same cyclic attractor
+        # may result in different self.attractor_states representations.
+        # To make identical cyclic attractors have the same representation,
+        # we place the network state with the smallest integer-converted value
+        # at the beginning of the list.
 
     def put_attractor_states_in_synchro_using_dict_state_forms(self, dict_form_network_states_of_attractor:[], perturbation={}):
-        """synchronous update로 구한 attractor의 정보를 입력한다.
-        각각의 state는 dict로 되어 있으며, 그것이 attractor내 transition 순서에 맞게
-        list안에 들어있도록 할 것."""
+        """insert attractor information obtained from a synchronous update.
+        Each network state must be in dict form, stored in a list
+        in the exact transition order within the attractor."""
         network_states = []
         for state_dict_form in dict_form_network_states_of_attractor:
             network_state_obj = Network_state(self.dynamics_pyboolnet)
             network_state_obj.put_state_dict_form(state_dict_form)
             network_states.append(network_state_obj)
-        #일단 dict form state를 state 객체로 변환한다.
+        #dictionary describing each network state is converted to Network_state object
         self.put_attractor_states_in_synchro_using_network_state_forms(network_states, perturbation)
 
 
     #
-    # attractor 객체 사이의 비교와 관련된 methods 들을 모아놓은 부분
+    # These methods are used to compare attractor objects.
     #    
     def __eq__(self, att_obj):
         return self.attractor_states == att_obj.attractor_states
     
     def extract_non_cyclic_states(self):
-        """attractor에서 non fluctuating nodes를 찾아서 dict form으로 return
-        
-        averagestate를 계산한 뒤, 그것이 0이거나 1이면 non fluctuating state라고 판단."""
+        """Identify non-fluctuating nodes in the attractor and return them with their non-fluctuating value in dict form.
+        After computing the average state, if its value is either 0 or 1,
+        the node is classified as non-fluctuating."""
         node_averagestate_map = self.get_average_state()
         node_nonfluctuatingstate_map = {}
 

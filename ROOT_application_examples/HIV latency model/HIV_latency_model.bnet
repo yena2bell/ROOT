@@ -1,0 +1,20 @@
+TNFalpha,	TNFalpha
+HMTs_input,	HMTs_input
+NFkB,	TNFalpha | Tat | Vpr | Nef
+HMTs,	HMTs_input | asRNA
+p5LTR,	NFkB & !HMTs
+p3LTR,	NFkB & !HMTs
+RNAs9kbN,	p5LTR
+vsiRNA,	p5LTR & !Tat
+vsaRNA,	p5LTR
+RNAs4kbN,	RNAs9kbN
+RNAs2kbN,	RNAs4kbN
+RNAs2kbC,	RNAs2kbN & !vsiRNA
+RNAs4kbC,	RNAs4kbN & Rev & !vsiRNA
+RNAs9kbC,	RNAs9kbN & Rev & !vsiRNA
+asRNA,	p3LTR & !vsaRNA
+Tat,	RNAs2kbC | RNAs4kbC
+Rev,	RNAs2kbC
+Nef,	RNAs2kbC
+Vpr,	RNAs2kbC | RNAs4kbC
+p24Gag,	RNAs9kbC

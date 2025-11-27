@@ -9,7 +9,6 @@ import itertools
 import SCC_decomposition
 
 class Find_cycles_containing_the_node:
-    #use Johnson's algorithm
     def __init__(self, s_node_contained_to_cycle, l_t_links):
         self.l_nodes = SCC_decomposition.get_SCC_containing_the_node(s_node_contained_to_cycle, l_t_links)
         self.links_of_SCC = self._extract_links_of_subnet(self.l_nodes, l_t_links)
@@ -52,7 +51,7 @@ class Find_cycles_containing_the_node:
             self.dict_blocked_link[i_node_end].add(i_node)
 
     def _unblock(self, i_node):
-        #가다가 막혔던 길이 l_flow를 거슬러 올라가면서 뚫리게 되었을 경우. 그 길을 다시 풀어준다.
+        """Unblocks previously blocked links."""
         if self.array_blocked[i_node]:#i is blocked:
             self.array_blocked[i_node] = False #reset of blocking
         if self.dict_blocked_link[i_node]:#dic_blocked_link[i_node] is set
@@ -70,10 +69,17 @@ class Find_cycles_containing_the_node:
             self._extend_flow(i_node_next)
     
     def _go_to_next_node(self, i_next_edge):
-        """현재의 self.l_flow에서 다음 node를 찾는다.
-        그 노드가 시작점 노드일 경우 simple cycle을 self.l_l_i_cycles에 추가하고 종료.
-        그 노드가 blocked 되어있지 않을 경우 self.l_flow에 그 노드를 확장한 뒤 종료.
-        그 노드가 blocked 되어있고, 시작점 노드도 아닐 경우 self.l_flow에 아무런 영향 없이 종료"""
+        """This method searches for a node to append to self.l_flow, appends it,
+        and processes it accordingly.
+        
+        self.l_flow represents the trajectory used for exploring cycles.
+        
+        The processing differs depending on the type of the added node:
+        - If the node is the start node, a simple cycle is added to
+          self.l_l_i_cycles.
+        - If the node is not blocked, the flow is extended to include this node.
+        - If the node is blocked and it is not the start node, no changes are made
+          to self.l_flow."""
         i_node_next = self.dict_i_node_t_i_targets[self.l_flow[-1]][i_next_edge]
         self.dict_i_count_for_each_node[self.l_flow[-1]] -= 1
         if i_node_next == self.i_index_of_the_node:#it is a cycle containing 0
@@ -84,9 +90,14 @@ class Find_cycles_containing_the_node:
             self._extend_flow(i_node_next)
     
     def _impassable_case(self):
-        """이 알고리즘의 핵심
-        끝까지 가봤던 flow를 되돌아가면서 그 flow가 원점에 도달(cycle을 형성)할 수 없는 싹수없는 경우이면 (b_end = False)
-        다시 갈 일이 없도록 links 를 다 막아둔다."""
+        """This is the core part of the Johnson algorithm.
+        When no further cycles exist in a certain region, revisiting that region is
+        prevented by marking corresponding links as blocked, reducing redundant computation.
+
+        When a search flow returns after exploring a region and determines that it
+        cannot reach the origin node (i.e., cannot form a cycle; b_end = False),
+        the links leading into that region are marked as blocked so that they
+        will not be explored again."""
         i_end = self.l_flow.pop(-1)
         b_end = self.l_connectable_to_the_node.pop(-1)
         if self.l_flow:
@@ -110,7 +121,9 @@ class Find_cycles_containing_the_node:
         for i in range(len(l_i_cycle)):
             node_from = self.l_nodes[cycle_copy[i]]
             node_to = self.l_nodes[cycle_copy[i+1]]
-            links_this_part = []#같은 source, target 에 대해 2개 이상의 link 가 있을 경우를 대비하여.
+            
+            #Handles the case where multiple links may exist between the same source and target.
+            links_this_part = []
             for link in self.links_of_SCC:
                 if (link[0] == node_from) and (link[-1] == node_to):
                     links_this_part.append(link)
@@ -124,10 +137,21 @@ class Find_cycles_containing_the_node:
         
     
     def find_cycles(self, algorithm="Johnson", max_len=None, return_node_form=True):
-        """max_len 은 network 상에서 최대 얼마 길이까지의 simple cycle까지 탐색하는지 지정.
-        None일 경우 제한 없음을 의미함. max_len=1 이면 self-loop 만 탐색하는 식.
-        계산량이 너무 많아질 것을 대비하였음.
-        현재로서는 simple algorithm에만 max_len 기능이 작동함. 개량 필요."""
+        """Detect cycles in the given network structure using either the 'Johnson'
+        algorithm or the 'simple' algorithm.
+        
+        If 'return_node_form' is True, each detected cycle is returned as a list of
+        the nodes that constitute the cycle.
+        If 'return_node_form' is False, each detected cycle is returned as a list
+        of the links that constitute the cycle.
+        
+        The parameter 'max_len' is used only when the 'simple' algorithm is selected.
+        It specifies the maximum cycle length to search for in the network.
+        For example, if max_len=1, only self-loops are detected.
+        If max_len=None, cycles of all lengths are explored without limits.
+        
+        When the network model is too complex and computation becomes excessive,
+        limiting max_len may be necessary."""
         if max_len is None:
             self.i_max_len = len(self.l_nodes)
         elif max_len<1 or (type(max_len) != type(1)):
@@ -162,5 +186,3 @@ class Find_cycles_containing_the_node:
             for l_i_cycle in self.l_l_i_cycles:
                 cycles.extend(self.restore_link_form_from_node_form_feedback(l_i_cycle))
             return cycles
-        
-

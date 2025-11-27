@@ -7,7 +7,7 @@ Created on Sun Feb 28 14:41:04 2021
 import numpy as np
 
 def get_nodes_in_links(links:"[(node1,... ,node2), (node1,..., node3)...]"):
-    """links에 포함된 nodes를 찾아서 return 한다."""
+    """return all nodes in links without duplication"""
     nodes_in_links = set()
     for link in links:
         nodes_in_links.add(link[0])
@@ -39,11 +39,10 @@ def SCC_decomposition(ltLinks_data):
     return llSCC
 
 def get_SCC_containing_the_node(s_node, l_t_links_data):
-    """
+    """ get a SCC containing the specific node 's_node'
+    
     ltLinks_data = [(node1, node2), (node1, node3)...]
-    (node1, node2) means node1 interacte to node2 i.e. node1 -> node2
-    s_node 가 포함된 최소의 SCC를 list 형태로 추출한다.
-    """
+    (node1, node2) means node1 interacte to node2 i.e. node1 -> node2"""
     l_remained_links = l_t_links_data.copy()
     l_remained_nodes = get_nodes_in_links(l_remained_links)
     
@@ -55,13 +54,11 @@ def get_SCC_containing_the_node(s_node, l_t_links_data):
 
 
 def _find_SCC_under_startnode(flownode, lRemained_nodes, ltRemained_links):
-    """
-    sub function of 'SCC_decomposition'
+    """sub function of 'SCC_decomposition'
     nodes data = [node name1, node name2, ..... node name k]
     interaction data = [(node1, node2), (node1, node3)...]
     (node1, node2) means node1 interacte to node2 i.e. node1 -> node2
-    remained nodes set don't contain start node
-    """
+    remained nodes set don't contain start node"""
 
     lFlow_of_node = [flownode]
     llSet_of_SCC = []
@@ -108,12 +105,10 @@ def _find_SCC_under_startnode(flownode, lRemained_nodes, ltRemained_links):
 
 
 def _evaluate_SCC_inclusion(ltCycles,tNewCycle):
-    """
-    sub function of '_find_SCC_under_startnode'
+    """sub function of '_find_SCC_under_startnode'
     ltCycles = [(3,8},(11, 20) ....] if ltCycle is [(a,b), (c,d)...] then a,b,c,d satisfy a<b<c<d 
     tNewCycle = (50, 78) this means that node 50, node51.... node 78 is SCC
-    tCycle is the record of feedback in the flow. if tCycle==(a,b) then a<b
-    """
+    tCycle is the record of feedback in the flow. if tCycle==(a,b) then a<b"""
 
     for tCycle in ltCycles:
         if tCycle[1] < tNewCycle[0]:
@@ -135,13 +130,11 @@ def _evaluate_SCC_inclusion(ltCycles,tNewCycle):
 
 
 def net_of_SCCs(llSCC, ltLinks_data):
-    """
-    llSCC = [[node1,node2,node3... nodes in the SCC1],[node6,node7.... nodes in the SCC2],....]
+    """llSCC = [[node1,node2,node3... nodes in the SCC1],[node6,node7.... nodes in the SCC2],....]
     ltLinks_data = [(node1, node2), (node1, node3)...]
     give each SCC the number as llSCC.index
     calculate interactions between SCCs.
-    return the list [(SCC1's number,SCC2's number),...] this means that link connecting SCC1 -> SCC2 exists
-    """
+    return the list [(SCC1's number,SCC2's number),...] this means that link connecting SCC1 -> SCC2 exists"""
     l_remained_links = list(ltLinks_data)
     lt_SCClinks = []
     
@@ -165,11 +158,9 @@ def net_of_SCCs(llSCC, ltLinks_data):
 
 
 def node_position_finding(llSCC, s_node):
-    """
-    sub function of 'net_of_SCCs'
+    """sub function of 'net_of_SCCs'
     llSCC = [[node1,node2,node3... nodes in the SCC1],[node6,node7.... nodes in the SCC2],....]
-    s_node is node name
-    """
+    s_node is node name"""
     for i, lSCC in enumerate(llSCC):
         if s_node in lSCC:
             return i
@@ -178,13 +169,11 @@ def node_position_finding(llSCC, s_node):
 
 
 def highest_SCCs_finding(llSCC, lt_SCClinks, b_onenodeSCC = False):
-    """
-    llSCC = [[node1,node2,node3... nodes in the SCC1],[node6,node7.... nodes in the SCC2],....]
+    """llSCC = [[node1,node2,node3... nodes in the SCC1],[node6,node7.... nodes in the SCC2],....]
     lt_SCClinks = [(0,2), (3,4), ...] (a,b) means that SCC which is llSCC[a] has direct links to SCC which is llSCC[b]
     lt_SCClinks can be result of net_of_SCCs function
     this function returns SCC number which has no upper SCCs
-    if b_onenodeSCC == False, then highest SCCs should have more than 2 nodes
-    """
+    if b_onenodeSCC == False, then highest SCCs should have more than 2 nodes"""
     l_ihighest_hierarchy = []
     for i in range(len(llSCC)):
         for t_link in lt_SCClinks:

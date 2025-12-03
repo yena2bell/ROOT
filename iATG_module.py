@@ -258,6 +258,7 @@ class iATG:
         before find this, self.attractor_transitions_induced_by_IC_change should be calculated.
         
         after finding iCAs, calculate the size of each iCA."""
+        self.iCAs = [] #initialize
         SCCs_in_iATG = SCC_decomposition(self.attractor_transitions_induced_by_IC_change)
         #filter SCC composed of single attractor
         for SCC in SCCs_in_iATG:

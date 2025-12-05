@@ -1,5 +1,5 @@
 # ROOT
-This repository contains the code for the paper titled   **The origin of an irreversible transition in biological networks**
+This repository contains the code for the paper titled   **The origin of irreversible transitions in biological networks**
 
 ROOT (**Revelation Of the Original circuit of irreversible Transition**) is a Python-based framework for identifying the **irreversibility kernel** underlying a specific irreversible cellular process, and for exploring **control strategies** to modulate that process.
 

@@ -646,7 +646,7 @@ class ITP:
                 break
         else:
             raise ValueError("The attractor_basal_irrev in the controlled iATG is not found.")
-        #이것으로 attractor_basal_irrev를 보존한다는 조건은 clear
+        # this ensures that the condition of preserving attractor`_basal_irrev
         attr_tuple_form_basal_irrev_in_controlled = ('basal',i)
 
         for ica in iatg_controlled.iCAs:
@@ -658,7 +658,7 @@ class ITP:
         ica.set_phenotype_nodes(phenotype_nodes)
         phenotype_of_ica_in_IC_transition_in_controlled = ica.get_phenotype_for_IC("transition")
         phenotype_of_ica_in_IC_transition_in_controlled = {phenonode:averstate for phenonode, averstate in phenotype_of_ica_in_IC_transition_in_controlled.items() if averstate in (0,1)}
-        #phenotype 에서 non-cyclic 부분만 골라낸다.
+        #extract non-cyclic nodes among phenotype nodes
 
         phenotype_nodes_in_transition_non_cyclic = {pheno_node: self.non_cyclic_part_transition[pheno_node] for pheno_node in self.phenotype_nodes if pheno_node in self.non_cyclic_part_transition}
 

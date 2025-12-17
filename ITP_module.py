@@ -38,6 +38,7 @@ class ITP:
         return self._get_attractor_object_using_attr_tuple_form(attr_tuple_form).extract_non_cyclic_states()
     
     def set_phenotype_nodes(self, phenotype_nodes):
+        """used for reversing control efficacy score calculation"""
         self.phenotype_nodes = list(phenotype_nodes)
         self._calculate_phenotype_scores()
 
@@ -54,7 +55,7 @@ class ITP:
         self.irreversibility_motifs = []
         self.coherency_conditions = []
 
-    def get_phenotype_score(self):
+    def get_phenotype_scores_of_composing_attractors(self):
         print("attractor_basal_irrev: ", self.pheno_basal_irrev)
         print("->")
         print("attractor_transition: ", self.pheno_transition)
@@ -330,25 +331,24 @@ class ITP:
     def _get_info_of_expanded_node(self, expanded_node_name):
         return self._get_expanded_network().nodes()[expanded_node_name]['info']
     
-    def get_resetting_efficacy_score_of(self, control_configuration, verbose=False):
-        """control configuration is given as a dictionary in the form of {node: state}.
-        When the model state is in attractor_basal_rev, 
-        the system applies the control configuration to let the state converge to a new attractor. 
-        Then, after removing control configuration, 
-        it calculates the reversion probability, 
-        which is the probability that the system returns to attractor_basal_irrev.
-        
-        If attractor_basal_rev is a cyclic attractor or 
-        the new attractor obtained after applying control configuration is a cyclic attractor, 
-        the reversion probability is calculated under the assumption 
+    def get_resetting_efficacy_score_of(self, control_strategy, verbose=False):
+        """`control_strategy` is given as a dictionary in the form of {node: state}.
+        When the model state is in `attractor_basal_rev`, 
+        the system applies the `control_strategy` to let the state converge to a new attractor. 
+        Then, after removing `control_strategy`, 
+        it calculates the probability that the system returns to `attractor_basal_irrev`.
+
+        If `attractor_basal_rev` is a cyclic attractor or 
+        the new attractor obtained after applying `control_strategy` is a cyclic attractor, 
+        the probability is calculated under the assumption 
         that the system is equally likely to be in any state of the cyclic attractor."""
         dynamics_pyboolnet = self.iCA.iATG.dynamics_Boolean_net
         IC_basal = self.iCA.iATG.IC_basal
         fixed_node_state_map = self.iCA.iATG.fixed_node_state_map
 
-        fixed_node_state_map_with_control_configuration = {**fixed_node_state_map, **control_configuration}
+        fixed_node_state_map_with_control_strategy = {**fixed_node_state_map, **control_strategy}
         attractor_landscape_wo_control = self.iCA.iATG.attractor_landscape_basal
-        attractor_landscape_controlled = Attractor_landscape_for_specific_IC(dynamics_pyboolnet, IC_basal, fixed_node_state_map_with_control_configuration)
+        attractor_landscape_controlled = Attractor_landscape_for_specific_IC(dynamics_pyboolnet, IC_basal, fixed_node_state_map_with_control_strategy)
 
         attractor_basal_rev_object = self._get_attractor_object_using_attr_tuple_form(self.attr_basal_rev)
         attractor_basal_irrev_object = self._get_attractor_object_using_attr_tuple_form(self.attr_basal_irrev)
@@ -357,16 +357,16 @@ class ITP:
         num_of_attractor_basal_rev_states = len(attractor_states_of_basal_rev)
         if verbose:
             print("this attractor has {} states".format(num_of_attractor_basal_rev_states))
-        reversion_probability = 0
+        probability = 0
         for state_object in attractor_states_of_basal_rev:
             if verbose:
                 print("state_object: ")
                 print(state_object)
             attractor_object_under_control = attractor_landscape_controlled.converge_network_state_to_attractor(state_object)
             attractor_states_converged_after_control = attractor_object_under_control.get_attractor_states()
-            num_of_attractor_converged_after_control_states = len(attractor_states_converged_after_control)
+            num_of_att_states_converged_after_control = len(attractor_states_converged_after_control)
             if verbose:
-                print("this state converges to attractor with {} states after applying the temporary control".format(num_of_attractor_converged_after_control_states))
+                print("this state converges to attractor with {} states after applying the control strategy".format(num_of_att_states_converged_after_control))
             num_of_states_going_to_basal_irrev = 0
             for state_converged_after_control in attractor_states_converged_after_control:
                 attractor_object_after_removing_control = attractor_landscape_wo_control.converge_network_state_to_attractor(state_converged_after_control)
@@ -376,28 +376,29 @@ class ITP:
                         print("the state in converged attractor")
                         print(state_converged_after_control)
                         print("arrived to attractor_basal_irrev")
-            reversion_probability_for_this_state = num_of_states_going_to_basal_irrev / num_of_attractor_converged_after_control_states
-            reversion_probability += (reversion_probability_for_this_state / num_of_attractor_basal_rev_states)
+            probability_for_this_state = num_of_states_going_to_basal_irrev / num_of_att_states_converged_after_control
+            probability += (probability_for_this_state / num_of_attractor_basal_rev_states)
         
-        return reversion_probability
+        return probability
     
-    def get_the_average_state_for_each_IC_by_applying(self, control_configuration, verbose=False):
-        """control_configuration is given as a dictionary in the form of {node: state}.
-        When the model state is in attractor_basal_rev,
-        applying the control_configuration causes the system to converge to a new attractor.
-        From there, we identify the iCA(s) in the iATG (constructed under the control_configuration)
+    def get_the_average_state_for_each_IC_by_applying(self, control_strategy, verbose=False):
+        """`control_strategy` is given as a dictionary in the form of {node: state}.
+        When the model state is in `attractor_basal_rev`,
+        applying the `control_strategy` causes the system to converge to a new attractor.
+        From there, we identify the iCA(s) in the iATG (constructed under the `control_strategy`)
         that the newly converged attractor would reach via attractor transition.
-        Then, we calculate the average state per input configuration (IC) for those iCAs.
+        Then, we calculate the phenotype of iCA for each input configuration (IC).
         
         If the newly converged attractor leads to multiple iCAs via transition,
-        we use the transition probabilities (TPs) in the iATG to determine the contribution of each iCA,
+        we use the transition probabilities (TPs) in the iATG 
+        to determine the contribution of each iCA,
         and compute a weighted average accordingly."""
         dynamics_pyboolnet = self.iCA.iATG.dynamics_Boolean_net
         node_names = dynamics_pyboolnet.get_node_names()
         IC_basal = self.iCA.iATG.IC_basal
         IC_transition = self.iCA.iATG.IC_transition
         fixed_node_state_map = self.iCA.iATG.fixed_node_state_map
-        fixed_node_and_control_configuration = {**fixed_node_state_map, **control_configuration}
+        fixed_node_and_control_strategy = {**fixed_node_state_map, **control_strategy}
 
         attractor_basal_rev_object = self._get_attractor_object_using_attr_tuple_form(self.attr_basal_rev)
         attractor_states_of_basal_rev = attractor_basal_rev_object.get_attractor_states()
@@ -411,7 +412,7 @@ class ITP:
             if verbose:
                 print("state_object: ")
                 print(state_object)
-            iATG_controlled = iATG_module.iATG(dynamics_pyboolnet, IC_basal, IC_transition, fixed_node_and_control_configuration)
+            iATG_controlled = iATG_module.iATG(dynamics_pyboolnet, IC_basal, IC_transition, fixed_node_and_control_strategy)
             iATG_controlled.set_empty_attractor_landscape_for_each_IC_wo_calculation()
             attractor_landscape_basal_in_controlled = iATG_controlled.attractor_landscape_basal
             attractor_landscape_transition_in_controlled = iATG_controlled.attractor_landscape_transition
@@ -469,35 +470,35 @@ class ITP:
         IC_averagestate_map = {"basal": basal_average_state, "transition": transition_average_state}
         return IC_averagestate_map
     
-    def get_reversing_efficacy_score_of(self, control_configuration,
+    def get_reversing_efficacy_score_of(self, control_strategy,
                                         phenotype_nodes=None):
-        """Calculate the Hamming distance between the phenotype node states of the attractor_basal_irrev in this ITP
-        and the average phenotype node states of 'basal' after applying control_configuration.
-        
-        Also calculate the Hamming distance between the phenotype node states of the attractor_transition in this ITP
-        and the average phenotype node states of 'transition' after applying control_configuration.
-        
-        Return the sum of these two Hamming distances.
-        If phenotype_nodes is None, use the phenotype nodes of this ITP."""
-        
-        IC_averagestate_map = self.get_the_average_state_for_each_IC_by_applying(control_configuration)
-        
-        desired_phenotype_score = 1/(1+self.get_phenotype_score_compared_to_average_state_for_each_IC(IC_averagestate_map, phenotype_nodes))
-        return desired_phenotype_score
+        """Calculate the L1 distance between the phenotype node states 
+        of the `attractor_basal_irrev` in this ITP
+        and the average phenotype node states of 'basal' after applying control_strategy.
+
+        Also calculate the L1 distance between the phenotype node states 
+        of the `attractor_transition` in this ITP
+        and the average phenotype node states of 'transition' after applying control_strategy.
+
+        Return the sum of these two L1 distances.
+        If `phenotype_nodes` is None, use the phenotype nodes of this ITP."""
+
+        IC_averagestate_map = self.get_the_average_state_for_each_IC_by_applying(control_strategy)
+
+        reversing_efficacy_score = 1/(1+self.get_Diffsum(IC_averagestate_map, phenotype_nodes))
+        return reversing_efficacy_score
     
-    def get_phenotype_score_compared_to_average_state_for_each_IC(self, 
-                                                                      IC_averagestate_map, 
-                                                                      phenotype_nodes=None):
-        """Compute the Hamming distance between the phenotype node states 
+    def get_Diffsum(self, IC_averagestate_map, phenotype_nodes=None):
+        """Compute the L1 distance between the phenotype node states
         of the attractor_basal_irrev in this ITP 
         and the average phenotype node states of 'basal' in IC_averagestate_map.
-        
-        Also compute the Hamming distance between the phenotype node states 
+
+        Also compute the L1 distance between the phenotype node states 
         of the attractor_transition in this ITP 
         and the average phenotype node states of 'transition' in IC_averagestate_map.
 
-        Return the sum of these two Hamming distances.
-        
+        Return the sum of these two L1 distances.
+
         if phenotype_nodes is None,
         use the phenotype nodes of this ITP."""
         if phenotype_nodes is None:
@@ -506,18 +507,18 @@ class ITP:
         attractor_basal_irrev = self._get_attractor_object_using_attr_tuple_form(self.attr_basal_irrev)
         attractor_transition = self._get_attractor_object_using_attr_tuple_form(self.attr_transition)
         
-        Hamming_distance_basal = self._get_Hamming_distance(attractor_basal_irrev.get_average_state(),
-                                                            IC_averagestate_map["basal"],
-                                                            phenotype_nodes)
-        Hamming_distance_transition = self._get_Hamming_distance(attractor_transition.get_average_state(),
-                                                                  IC_averagestate_map["transition"],
-                                                                    phenotype_nodes)
-        
-        return Hamming_distance_basal + Hamming_distance_transition
-    
+        L1_distance_basal = self._get_L1_distance(attractor_basal_irrev.get_average_state(),
+                                                IC_averagestate_map["basal"],
+                                                phenotype_nodes)
+        L1_distance_transition = self._get_L1_distance(attractor_transition.get_average_state(),
+                                                        IC_averagestate_map["transition"],
+                                                        phenotype_nodes)
+
+        return L1_distance_basal + L1_distance_transition
+
     @staticmethod
-    def _get_Hamming_distance(state1:dict, state2:dict, nodes_considered):
-        """Calculate the Hamming distance between two states.
+    def _get_L1_distance(state1:dict, state2:dict, nodes_considered):
+        """Calculate the L1 distance between two states.
         Only consider the nodes in phenotype_nodes."""
         distance = 0
         for node in nodes_considered:
@@ -525,11 +526,11 @@ class ITP:
         
         return distance
     
-    def get_control_strategiess_having_n_control_targets(self, n_nodes=1):
+    def get_control_candidates_having_n_control_targets(self, n_nodes=1):
         """Control candidates consisting of n control target nodes are identified.
         From the nodes included in the irreversibility motifs, 
         n nodes are selected as control targets,
-        and each target node is assigned a state opposite to its state in attractor_basal_rev.
+        and each target node is assigned a state opposite to its state in `attractor_basal_rev`.
 
         Each control candidate must share at least one node with each irreversibility motif 
         and the set of control targets.
@@ -563,68 +564,68 @@ class ITP:
             control_candidates.append(control_candidate)
         return control_candidates
 
-    def find_reverse_controls(self):
-        reverse_controls = []
-        for i, irreversibility_motif in enumerate(self.irreversibility_motifs):
-            coherency_condition = self.coherency_conditions[i]
-            reverse_controls.extend(self._find_reverse_controls_for_given_irreversibility_kernel(irreversibility_motif, coherency_condition))
+    # def find_reverse_controls(self):
+    #     reverse_controls = []
+    #     for i, irreversibility_motif in enumerate(self.irreversibility_motifs):
+    #         coherency_condition = self.coherency_conditions[i]
+    #         reverse_controls.extend(self._find_reverse_controls_for_given_irreversibility_kernel(irreversibility_motif, coherency_condition))
         
-        return reverse_controls
+    #     return reverse_controls
 
-    def _find_reverse_controls_for_given_irreversibility_kernel(self, irreversibility_motif, coherency_condition):
-        controls_first = []
-        for nodes in power_set(irreversibility_motif):
-            control = {}
-            for node in nodes:
-                control[node] = 1 - self.non_cyclic_part_basal_rev[node]
-            controls_first.append(control)
+    # def _find_reverse_controls_for_given_irreversibility_kernel(self, irreversibility_motif, coherency_condition):
+    #     controls_first = []
+    #     for nodes in power_set(irreversibility_motif):
+    #         control = {}
+    #         for node in nodes:
+    #             control[node] = 1 - self.non_cyclic_part_basal_rev[node]
+    #         controls_first.append(control)
         
-        controls_second = []
-        for control in controls_first:
-            for node, state_value in control.items():
-                if self.non_cyclic_part_basal_irrev.get(node, -1) != state_value:
-                    break
-            else:
-                controls_second.append(control)
+    #     controls_second = []
+    #     for control in controls_first:
+    #         for node, state_value in control.items():
+    #             if self.non_cyclic_part_basal_irrev.get(node, -1) != state_value:
+    #                 break
+    #         else:
+    #             controls_second.append(control)
                 
-        controls_third = []
-        phenotype_nodes_in_transition_non_cyclic = {pheno_node: self.non_cyclic_part_transition[pheno_node] for pheno_node in self.phenotype_nodes if pheno_node in self.non_cyclic_part_transition}
+    #     controls_third = []
+    #     phenotype_nodes_in_transition_non_cyclic = {pheno_node: self.non_cyclic_part_transition[pheno_node] for pheno_node in self.phenotype_nodes if pheno_node in self.non_cyclic_part_transition}
 
-        expanded_net = self._get_expanded_network()
-        IC_transition = self.iCA.iATG.IC_transition
-        fixed_node_state_map = self.iCA.iATG.fixed_node_state_map
-        expanded_nodes_for_IC_transition_and_fixed_nodes = []
-        for node, state in IC_transition.items():
-            expanded_nodes_for_IC_transition_and_fixed_nodes.append(self._convert_dict_to_str_form({node:state}))
-        for node, state in fixed_node_state_map.items():
-            expanded_nodes_for_IC_transition_and_fixed_nodes.append(self._convert_dict_to_str_form({node:state}))
+    #     expanded_net = self._get_expanded_network()
+    #     IC_transition = self.iCA.iATG.IC_transition
+    #     fixed_node_state_map = self.iCA.iATG.fixed_node_state_map
+    #     expanded_nodes_for_IC_transition_and_fixed_nodes = []
+    #     for node, state in IC_transition.items():
+    #         expanded_nodes_for_IC_transition_and_fixed_nodes.append(self._convert_dict_to_str_form({node:state}))
+    #     for node, state in fixed_node_state_map.items():
+    #         expanded_nodes_for_IC_transition_and_fixed_nodes.append(self._convert_dict_to_str_form({node:state}))
 
-        for control in controls_second:
-            IC_transition_fixed_nodes_and_control = expanded_nodes_for_IC_transition_and_fixed_nodes.copy()
-            for node, state in control.items():
-                IC_transition_fixed_nodes_and_control.append(self._convert_dict_to_str_form({node:state}))
-            LDOI_by_control = expanded_net.get_LDOI(IC_transition_fixed_nodes_and_control, only_return_single_nodes=True)
+    #     for control in controls_second:
+    #         IC_transition_fixed_nodes_and_control = expanded_nodes_for_IC_transition_and_fixed_nodes.copy()
+    #         for node, state in control.items():
+    #             IC_transition_fixed_nodes_and_control.append(self._convert_dict_to_str_form({node:state}))
+    #         LDOI_by_control = expanded_net.get_LDOI(IC_transition_fixed_nodes_and_control, only_return_single_nodes=True)
             
-            phenotype_node_state_map_in_LDOI = {}
-            for expanded_node_in_LDOI in LDOI_by_control:
-                original_node_name = self._get_original_node_name_from_expanded_node_name(expanded_node_in_LDOI)
-                if original_node_name in self.phenotype_nodes:
-                    state_in_LDOI = self._get_info_of_expanded_node(expanded_node_in_LDOI).dict_form[original_node_name]
-                    phenotype_node_state_map_in_LDOI[original_node_name] = state_in_LDOI
+    #         phenotype_node_state_map_in_LDOI = {}
+    #         for expanded_node_in_LDOI in LDOI_by_control:
+    #             original_node_name = self._get_original_node_name_from_expanded_node_name(expanded_node_in_LDOI)
+    #             if original_node_name in self.phenotype_nodes:
+    #                 state_in_LDOI = self._get_info_of_expanded_node(expanded_node_in_LDOI).dict_form[original_node_name]
+    #                 phenotype_node_state_map_in_LDOI[original_node_name] = state_in_LDOI
             
-            if phenotype_node_state_map_in_LDOI == phenotype_nodes_in_transition_non_cyclic:
-                controls_third.append(control)
+    #         if phenotype_node_state_map_in_LDOI == phenotype_nodes_in_transition_non_cyclic:
+    #             controls_third.append(control)
     
-        return controls_third
+    #     return controls_third
     
-    def check_the_effect_of_reverse_control(self, reverse_control, 
+    def check_the_effect_of_reversing_control(self, reversing_control_strategy, 
                                             use_all_initials=False,
-                                                   waiting_num=1000, 
-                                                   difference_threshold=0.00001,
-                                                   verbose=False):
+                                            waiting_num=1000, 
+                                            difference_threshold=0.00001,
+                                            verbose=False):
 
         fixed_node_state_map = self.iCA.iATG.fixed_node_state_map
-        fixed_node_state_map_with_control = {**fixed_node_state_map, **reverse_control}
+        fixed_node_state_map_with_control = {**fixed_node_state_map, **reversing_control_strategy}
         IC_basal = self.iCA.iATG.IC_basal
         IC_transition = self.iCA.iATG.IC_transition
         dynamics_Boolean_network = self.iCA.iATG.dynamics_Boolean_net
@@ -633,9 +634,9 @@ class ITP:
         iatg_controlled = iATG_module.iATG(dynamics_Boolean_network, IC_basal, IC_transition, fixed_node_state_map_with_control)
         iatg_controlled.set_phenotype_nodes(phenotype_nodes)
         iatg_controlled.calculate_attractor_landscapes_for_each_IC(use_all_initials,
-                                                   waiting_num=waiting_num, 
-                                                   difference_threshold=difference_threshold,
-                                                   verbose=False)
+                                                                    waiting_num=waiting_num, 
+                                                                    difference_threshold=difference_threshold,
+                                                                    verbose=verbose)
         iatg_controlled.get_attractor_transitions_induced_by_IC_change_and_calculate_TPs()
         iatg_controlled.find_iCAs_and_calculate_iCA_sizes()
         
@@ -667,16 +668,6 @@ class ITP:
         else:
             raise ValueError("The phenotype under IC_transition of iCA \ncontaining the attr_basal_irrev\n is different form phenotype of attr_transition before control")
         
-
-
-
-
-
-                
-
-
-
-
 
 
 def power_set(input_set, except_empty_set=True):

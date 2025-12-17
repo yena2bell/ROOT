@@ -5,7 +5,7 @@ AP1, (ERK & Twist1) | (SMAD4 & p38)
 ERK, (MEK & SMAD4) | (MEK & TGFBR) | (MEK & bcatenin & p53)
 GLI, (SMAD4 & TGFBR) | (TGFBR & bcatenin)
 GRB2SOS, TGFBR
-Destruction_complex, (!ERK & !bcatenin) | (!AKT & !GLI & !bcatenin)
+GSK3beta, (!ERK & !bcatenin) | (!AKT & !GLI & !bcatenin)
 IKK, AKT & TAK1
 MDM2, SMAD4 | p53
 MEK, RAF | !ERK
@@ -21,7 +21,7 @@ TAK1, TGFBR
 TGFBR, TGFb
 Twist1, ERK | Snail | !p53
 ZEB1, (ERK & !miR200) | (Snail & !miR200) | (bcatenin & !miR200)
-bcatenin, (ERK & !Destruction_complex) | (RAS & !Destruction_complex)
+bcatenin, (ERK & !GSK3beta) | (RAS & !GSK3beta)
 miR200, (p53 & !Snail) | (p53 & !TGFb) | (p53 & !ZEB1)
 miR34, (ERK & !Snail) | (p53 & !Snail) | (p53 & !ZEB1) | (!TGFBR & !ZEB1)
 p38, RAS & TAK1

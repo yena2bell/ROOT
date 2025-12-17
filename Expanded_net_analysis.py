@@ -3,8 +3,10 @@
 
 @author: jwKim
 
-Model_read의 Dynamics_pyBoolnet으로부터 expanded net을 만들고, 분석하는 코드
-expanded node format setting 에서 만들어지는 expanded net의 format 조정 가능.
+using Dynaimcs_pyBoolnet` object from Model_read_using_pyboolnet.py module,
+construct expanded network and analyze it.
+each expanded node can be expressed in dictionary format or string format.
+string format can be changed in `Expanded_node` class.
 """
 
 import networkx as nx
@@ -26,15 +28,15 @@ class Expanded_node:
         return self.str_form
     
     def __eq__(self, dict_form):
-        """expaned_node A_1 == {"A":1}"""
+        """expaned_node A_1 can be described as {"A":1}"""
         return self.dict_form == dict_form
     
     def is_composite(self):
         return len(self.dict_form) >=2
     
     def get_regulators_of_composite(self):
-        """이 node가 composite node일 경우, 그 composite node가 만족하기 위한 regulators의
-        str forms 를 return한다."""
+        """if this node is composite node, this returns list of regulators of this node.
+        regulators are returned in str form."""
         if not self.is_composite():
             return []
         regulators_str_forms = []
@@ -44,8 +46,8 @@ class Expanded_node:
     
     @classmethod
     def get_str_form_from_dict_form(cls, dict_form):
-        """dict form으로 주어진 expanded node를 str form의 expanded node로 바꿔서
-        return한다."""
+        """this method get the expanded node expressed as dictionary format,
+        and convert it to string format, then return this string format expanded node."""
         dict_form_new = {}
         for node, state in dict_form.items():
             if int(state):
@@ -61,9 +63,10 @@ class Expanded_node:
     
     @classmethod
     def _get_str_form_of_composite_node(cls, dict_form_composite_node):
-        """composite node 를 str form으로 만들 때, nodes 의 순서를
-        고려해서, 같은 dict form 에서 다른 str form이 생기는 것을
-        방지한다."""
+        """this method get the composite expanded node expressed as dictionary format,
+        and convert it to string format.
+        while converting it, node names are ordered.
+        then return this string format composite expanded node."""
         nodes_in_composite = list(dict_form_composite_node.keys())
         nodes_in_composite.sort()
 
@@ -91,7 +94,6 @@ class Expanded_node:
 
 
 def make_expanded_net_using_dynamics_pyboolnet(dynamics_pyboolnet, reduction=True, perturbation={}):
-    """나중에 integer form logic으로부터 만드는 함수도 추가하려 함."""
     expanded_net = Expanded_Network()
     primes = dynamics_pyboolnet.get_primes(reduction, perturbation)
     single_nodes, composite_nodes, edges = _make_expanded_net_from_prime_implicants(primes)
@@ -110,26 +112,26 @@ def make_expanded_net_using_dynamics_pyboolnet(dynamics_pyboolnet, reduction=Tru
     return expanded_net
 
 def _make_expanded_net_from_prime_implicants(primes):
-    """pyboolnet의 primes를 사용하여 expanded network networkx 객체를 생성"""
+    """make networkx object whose nodes are expanded node
+    using pyboolnet primes implicants format."""
     single_nodes = {}#str form: dict form
     composite_nodes ={} #str form: dict form
     edges = []#[(str form source, str form target),,,]
 
     for node, clauses in primes.items():
         for state in [0,1]:
-            #일단 single expanded nodes 먼저 다 구하고,
+            # first, calculate all single expanded nodes.
             node_dict_form = {node: state}
             expanded_single_node = Expanded_node(node_dict_form)
             node_str_form = str(expanded_single_node)
             single_nodes[node_str_form] = expanded_single_node
 
-            #각 expanded single node에 대한 regulators 를 찾아주고, 그 관계를 기록함.
+            # find regulators for each expanded single node and record their relationships.
             for composite_node_candidate in clauses[state]:
                 if composite_node_candidate == {}:
-                    #특정 node를 1이나 0으로 fix한 후 구하는 경우 발생.
-                    #prime["A"] = [[], [{}]] 와 같이.
-                    #이 경우 A가 1로 fix 되는 것이므로
-                    #A_0 --> A_1 로 해준다.
+                    # This case occurs when a specific node is fixed to 1 or 0.
+                    # For example, prime["A"] = [[], [{}]].
+                    # In this case, A is fixed to 1, so, change A_0 to A_1
                     opposite_state = 1-state
                     opposite_expanded_node_dict_form = {node: opposite_state}
                     opposite_expanded_node_str_form = Expanded_node.get_str_form_from_dict_form(opposite_expanded_node_dict_form)
@@ -140,12 +142,12 @@ def _make_expanded_net_from_prime_implicants(primes):
                     if composite_node_str_form not in composite_nodes:
                         composite_nodes[composite_node_str_form] = expanded_composite_node
                     edges.append((composite_node_str_form, node_str_form))
-                else:#single node -> single node case
+                else:# the case when a regulator of single node is single node.
                     expanded_regulating_single_node = Expanded_node.get_str_form_from_dict_form(composite_node_candidate)
                     regulator_str_form = str(expanded_regulating_single_node)
                     edges.append((regulator_str_form, node_str_form))
-    
-    #각 composite node 의 regulator nodes를 찾아 기록한다.
+
+    # find regulators for each composite node and record their relationships.
     for composite_node_str_form, expanded_composite_node in composite_nodes.items():
         for node, state in expanded_composite_node.dict_form.items():
             single_node_str_form = Expanded_node.get_str_form_from_dict_form({node: state})
@@ -159,9 +161,9 @@ class Expanded_Network(nx.DiGraph):
         super().__init__(*args, **kwargs)
 
     def get_expanded_node_name(self, node_dict_form:dict):
-        """dict 형태로 넣은 expanded node (composite node 포함)
-        에 대해 그 expanded node가 이 객체에서 사용하고 있는
-        str 형태의 node name을 return 해준다."""
+        """this method get the expanded node expressed as dictionary format,
+        and convert it to string format, 
+        then return this string format composite expanded node."""
         return Expanded_node.get_str_form_from_dict_form(node_dict_form)
     
     @property
@@ -175,14 +177,14 @@ class Expanded_Network(nx.DiGraph):
         return original_nodes_set
     
     def get_node_info(self, expanded_node_name):
-        """str form, 또는 dict form으로 주어진 expanded_node_name에 대해,
-        그 node의 Expanded_node 객체를 return한다."""
+        """this method get the string format or dictionary format expression of expanded node,
+        then returns the object of the expanded node."""
         if isinstance(expanded_node_name, dict):
             expanded_node_name = self.get_expanded_node_name(expanded_node_name)
         return self.nodes[expanded_node_name]["info"]
     
     def show_names_of_composite_nodes(self):
-        """composite node 의 이름을 tuple에 모아서 return해준다."""
+        """this method returns tuple of composite nodes (string format) in this expanded net."""
         composite_node_names = []
         for node_name in self.nodes:
             if self.nodes[node_name]["info"].is_composite():
@@ -191,7 +193,7 @@ class Expanded_Network(nx.DiGraph):
         return tuple(composite_node_names)
     
     def show_names_of_single_nodes(self):
-        """single node 의 이름을 tuple 에 모아서 return해준다."""
+        """this method returns tuple of single expanded nodes (string format) in this expanded net."""
         single_node_names = []
         for node_name in self.nodes:
             if not self.nodes[node_name]["info"].is_composite():
@@ -199,38 +201,43 @@ class Expanded_Network(nx.DiGraph):
         
         return tuple(single_node_names)
     
-    def get_regulator_names_of_node(self, node_name:"str 또는 dict form"):
-        """주어진 expanded node의 이름으로부터, 그것의 regulators names 을 찾아서
-        tuple 로 return해준다."""
+    def get_regulator_names_of_node(self, node_name:"str or dict format"):
+        """this method get the expanded node name, and return the regulators of the node"""
         if isinstance(node_name, dict):
             node_name = self.get_expanded_node_name(node_name)
-            #dict form 이면 적절한 composite form으로 바꿔준다.
+
         return tuple(self.predecessors(node_name))
     
     def get_subnetwork(self, expanded_node_names:"list of str or dict forms"):
-        """어떤 expanded nodes가 주어지면, 그 expanded nodes와 그 expanded nodes를 잇는 links
-        만으로 이루어진 expanded network 객체를 return한다.
+        """Given a set of expanded nodes, return an expanded network object
+        consisting only of those expanded nodes and the links connecting them.
         
-        어떠한 composite node가 넣어준 expanded single nodes를 키고, 
-        그 regulators인 single expanded nodes가 전부 넣어준 expanded single nodes에 포함되면
-        그 composite node로 subnetwork에 포함시켜준다.
-        즉 A_1, B_1, C_1이 넣어준 값이고, A_1__and__B_1 --> C_1인 links가 존재하면
-        이것도 sub network에 포함된다는 것."""
+        If a composite node activates at leats one of the given expanded single nodes,
+        and all of its regulator single expanded nodes are included in the given set,
+        then that composite node is also included in the subnetwork.
+
+        For example, if A_1, B_1, and C_1 are given expanded nodes, and a link
+        A_1__and__B_1 --> C_1 exists, then this composite node and link
+        are also included in the subnetwork."""
         expanded_nodes_sub = self._convert_expanded_node_names_to_str_forms(expanded_node_names)
         
         composite_nodes_sub = []
         for composite_node in self.show_names_of_composite_nodes():
             if set(self.predecessors(composite_node)).issubset(expanded_nodes_sub):
-                #composite node의 regulators가 전부 expanded_nodes_sub에 들어가면서,
+                # if condition is satisfied when
+                # regulator nodes of the composite node are all contained
+                # in the expanded_nodes_sub,
                 if set(self.successors(composite_node)).intersection(expanded_nodes_sub):
-                    #그 composite node의 target 중 expanded_nodes_sub인 것이 있을 때,
+                    # if condition holds when
+                    # there exists a target of the composite node in the expanded_nodes_sub,
                     composite_nodes_sub.append(composite_node)
         
         return nx.subgraph(self, expanded_nodes_sub+composite_nodes_sub)
     
     def _convert_expanded_node_names_to_str_forms(self, expanded_node_names:"list of str or dict forms"):
-        """list에 expanded nodes가 str form이나 dict form이 섞여서 담겨 있을 때,
-        이것들을 전부 stro form으로 통일해서 return 한다."""
+        """this method gets the list of expanded node names (string format or dictionary format).
+        dictionary format node names are all converted to string format node names.
+        and the list of expanded node names is returned."""
         expanded_node_names_str_forms = []
         for expanded_node in expanded_node_names:
             if isinstance(expanded_node, dict):
@@ -240,10 +247,12 @@ class Expanded_Network(nx.DiGraph):
         return expanded_node_names_str_forms
     
     def get_LDOI(self, expanded_node_names:"list of str or dict forms", only_return_single_nodes=True):
-        """어떤 expanded nodes가 주어지면, 그로 인해 만들어지는 LDOI 를 return한다.
-        'only_return_single_nodes'==True이면 LDOI 를 이루는 single expanded nodes만 return
+        """Given a set of expanded nodes, return the LDOI induced by them.
         
-        처음에 넣어주는 expanded nodes에 모순이 없다고 가정하고 진행한다."""
+        If 'only_return_single_nodes' is True, return only the single expanded nodes
+        that constitute the LDOI.
+        
+        It is assumed that the initially provided expanded nodes contain no contradictions."""
         expanded_node_names = set(self._convert_expanded_node_names_to_str_forms(expanded_node_names))
         single_expanded_nodes_in_LDOI = set()
         composite_expanded_nodes_in_LDOI = set()
@@ -258,8 +267,8 @@ class Expanded_Network(nx.DiGraph):
             node_names_in_ldoi.add(list(self.get_node_info(expanded_node_name).dict_form.keys())[0])
         
         while True:
-            #하나라도 새로운 node를 찾으면 다시 while 문을 시작한다.
-            #새로운 node가 더는 찾아지지 않으면 while 문을 탈출한다.
+            # If at least one new node is found, restart the while loop.
+            # If no new nodes can be found, exit the while loop.
             already_checked = set()
             for expanded_node in expanded_node_names:
                 break_outer_for = False
@@ -277,7 +286,7 @@ class Expanded_Network(nx.DiGraph):
                             break
                         else:
                             already_checked.add(downstream_expanded_node)
-                    else:#single node
+                    else: # expanded_node_obj is single node
                         original_node_name = list(expanded_node_obj.dict_form.keys())[0]
                         if original_node_name in node_names_in_ldoi:
                             already_checked.add(downstream_expanded_node)
@@ -288,12 +297,12 @@ class Expanded_Network(nx.DiGraph):
                         break
 
                 if break_outer_for:
-                    break#outer for
+                    break # for
             
             expanded_nodes_names_new =single_expanded_nodes_in_LDOI.union(composite_expanded_nodes_in_LDOI) 
             if expanded_node_names == expanded_nodes_names_new:
-                #새로운 node가 추가되지 않음.
-                break#while
+                # no new expanded node is added
+                break # while
             else:
                 expanded_node_names = expanded_nodes_names_new
         
@@ -301,90 +310,3 @@ class Expanded_Network(nx.DiGraph):
             return single_expanded_nodes_in_LDOI
         else:
             return expanded_node_names
-
-
-
-        
-
-    
-    # def get_downstream_single_nodes(self, nodes_perturbed:"list 안에 dict form이나 str form의 nodes"):
-    #     """주어진 expanded nodes에 대해, expanded network 정보로부터 downstream single nodes를
-    #     구한다. expanded_nodes는 expanded network에서 사용하는 node 이름이어야 한다.
-    #     downstream single nodes는 그 nodes로부터 composite node 를 거치지 않고 
-    #     연결될 수 있는 single expanded nodes를 의미한다."""
-    #     nodes_perturbed_str_forms = self._convert_dict_forms_to_str_forms(nodes_perturbed)
-    #     #nodes_peturbed에 dict form이 섞여있으면 다 str form으로 바꿔준다.
-        
-    #     if Make_Using_Prime_Implicants.expanded_nodes_group_contains_contradiction(nodes_perturbed_str_forms):
-    #         print("perturbed nodes are contradict.")
-        
-    #     single_nodes = []
-    #     composite_nodes = []
-    #     for node in nodes_perturbed_str_forms:
-    #         if self.nodes[node]["composite"]:
-    #             composite_nodes.append(node)
-    #         else:
-    #             single_nodes.append(node)
-        
-    #     num_nodes_selected = len(single_nodes) + len(composite_nodes)
-    #     num_new = 0
-    #     while num_new < num_nodes_selected:#전 loop에 비해 새로 찾은 것이 있는가?
-    #         num_new = num_nodes_selected
-    #         for node in single_nodes+composite_nodes:
-    #             for successor_node in self.successors(node):
-    #                 if not Make_Using_Prime_Implicants.two_expanded_nodes_groups_are_contradict([successor_node], single_nodes+composite_nodes):
-    #                     if not self.nodes[successor_node]["composite"]:
-    #                         single_nodes.append(successor_node)
-            
-    #         single_nodes = list(set(single_nodes))
-    #         num_nodes_selected = len(single_nodes) + len(composite_nodes)
-        
-    #     return single_nodes
-        
-    
-    # def get_LDOI(self, nodes_perturbed:"list 안에 dict form이나 str form의 nodes"):
-    #     """perturbed 된 nodes 를 넣어줄 때, 그것으로 인한 LDOI 를 계산해서 return한다."""
-    #     nodes_perturbed_str_forms = self._convert_dict_forms_to_str_forms(nodes_perturbed)
-    #     #nodes_peturbed에 dict form이 섞여있으면 다 str form으로 바꿔준다.
-        
-    #     if Make_Using_Prime_Implicants.expanded_nodes_group_contains_contradiction(nodes_perturbed_str_forms):
-    #         print("perturbed nodes are contradict.")
-        
-    #     single_nodes = []
-    #     composite_nodes = []
-    #     for node in nodes_perturbed_str_forms:
-    #         if self.nodes[node]["composite"]:
-    #             composite_nodes.append(node)
-    #         else:
-    #             single_nodes.append(node)
-        
-    #     num_nodes_selected = len(single_nodes) + len(composite_nodes)
-    #     num_new = 0
-    #     while num_new < num_nodes_selected:#전 loop에 비해 새로 찾은 것이 있는가?
-    #         num_new = num_nodes_selected
-    #         set_composite_nodes_LDOI_candidates = set()
-    #         for node in single_nodes+composite_nodes:
-    #             for successor_node in self.successors(node):
-    #                 if not Make_Using_Prime_Implicants.two_expanded_nodes_groups_are_contradict([successor_node], single_nodes+composite_nodes):
-    #                     if self.nodes[successor_node]["composite"]:
-    #                         set_composite_nodes_LDOI_candidates.add(successor_node)
-    #                     else:
-    #                         single_nodes.append(successor_node)
-    #         #find composite node canalized by nodes
-    #         for composite_candidate in set_composite_nodes_LDOI_candidates:
-    #             regulators = self.get_regulator_names_of_node(composite_candidate)
-    #             if all((regulator in single_nodes) for regulator in regulators):
-    #                 composite_nodes.append(composite_candidate)
-            
-    #         single_nodes = list(set(single_nodes))
-    #         composite_nodes = list(set(composite_nodes))
-    #         num_nodes_selected = len(single_nodes) + len(composite_nodes)
-        
-    #     return single_nodes
-
-
-if __name__ == "__main__":
-    import Model_read
-    add_test_model = os.path.join(r"D:\new canalizing kernel\우정 tumorigenesis 모델", "Fumia_logic_model.bnet")
-    dynamics_test_model = Model_read.read_pyboolnet_file(add_test_model)
-    expanded_toy = make_expanded_net_using_dynamics_pyboolnet(dynamics_test_model,reduction=True, perturbation={})

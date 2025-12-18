@@ -24,7 +24,9 @@ class ITP:
         self.phenotype_nodes = []
 
         self.irreversibility_motifs = []
-        self.coherency_conditions = []
+        self.coherency_conditions = [] # self.coherency_conditions[i] corresponds to self.irreversibility_motifs[i]
+        # collection of irreversibility motifs with corresponding coherency conditions
+        # is irreversibility kernel of this ITP
 
         self.pheno_basal_irrev = {}
         self.pheno_transition = {}
@@ -66,75 +68,82 @@ class ITP:
         fixed_nodes = list(self.iCA.iATG.fixed_node_state_map.keys())
         expanded_subnet, expanded_nodes_basal_rev_only = self._make_expanded_subnet_of_non_cyclic_basal_rev()
         feedback_loops_in_expanded_net = self._find_feedback_loops_from_expanded_net_containing_specific_nodes(expanded_subnet, expanded_nodes_basal_rev_only, max_len, fixed_nodes)
-        # these are used to find irreversibility-enhancing positive feedback loops.
+        # these are CSMs in the expanded subnet of non-cyclic part of attractor_basal_rev
         feedback_loops_copied = feedback_loops_in_expanded_net.copy()
 
         non_cyclic_part_basal_common = self._intersection_between_dict(self.non_cyclic_part_basal_rev, self.non_cyclic_part_basal_irrev)
-        irreversibility_enhancing_subnets_and_coherency_conditions_selected = []
+        CSMs_becoming_irreversibility_motif = []
 
+        # CSMs are checked whether they are irreversibility motif & coherency condition
+        # CSMs which are not irreversibility motif & coherency condition are combined to make larger CSM
+        # CSMs which are made by combination of other CSMs are checked again
         i_comb = 1
         while len(feedback_loops_in_expanded_net)>=i_comb:
             feedback_loops_used_in_selected = []
-            irreversibility_enhancing_subnets_and_coherency_conditions, feedback_loops_used_for_each_irreversibility_enhancing_subnet = self._find_irreversibility_enhancing_subnet_and_corresponding_coherency_conditions(feedback_loops_copied, i_comb)
-            for i, irreversibility_enhancing_subnet_and_coherency_condition in enumerate(irreversibility_enhancing_subnets_and_coherency_conditions):
-                coherency_condition = irreversibility_enhancing_subnet_and_coherency_condition[1]
-                if self._dict1_contain_dict2(non_cyclic_part_basal_common, coherency_condition):
-                    irreversibility_enhancing_subnets_and_coherency_conditions_selected.append(irreversibility_enhancing_subnet_and_coherency_condition)
-                    feedback_loops_used_in_selected.extend(feedback_loops_used_for_each_irreversibility_enhancing_subnet[i])
+            # irreversibility_enhancing_subnets_and_coherency_conditions, feedback_loops_used_for_each_irreversibility_enhancing_subnet = self._make_CSMs_combined_from_i_num_CSMs(feedback_loops_copied, i_comb)
+            CSMs_combined, feedback_loops_used_for_combination = self._make_CSMs_combined_from_i_num_CSMs(feedback_loops_copied, i_comb)
+            # for i, irreversibility_enhancing_subnet_and_coherency_condition in enumerate(irreversibility_enhancing_subnets_and_coherency_conditions):
+            for i, CSM_combined in enumerate(CSMs_combined):
+                CSM_condition = CSM_combined[1]
+                if self._dict1_contain_dict2(non_cyclic_part_basal_common, CSM_condition):
+                    CSMs_becoming_irreversibility_motif.append(CSM_combined)
+                    # feedback_loops_used_in_selected.extend(feedback_loops_used_for_each_irreversibility_enhancing_subnet[i])
+                    feedback_loops_used_in_selected.extend(feedback_loops_used_for_combination[i])
             feedback_loops_copied = [feedback_loop for feedback_loop in feedback_loops_copied if feedback_loop not in feedback_loops_used_in_selected]
             i_comb += 1
         
-        # delete duplcated irreversibility_enhancing_subnets_and_coherency_conditions
-        irreversibility_enhancing_subnets_and_coherency_conditions_not_duplicated = []
-        for irreversibility_enhancing_subnet_and_coherency_condition in irreversibility_enhancing_subnets_and_coherency_conditions_selected:
-            if irreversibility_enhancing_subnet_and_coherency_condition not in irreversibility_enhancing_subnets_and_coherency_conditions_not_duplicated:
-                irreversibility_enhancing_subnets_and_coherency_conditions_not_duplicated.append(irreversibility_enhancing_subnet_and_coherency_condition)
+        # delete duplcated CSMs
+        CSMs_wo_duplication = []
+        for CSM_becoming_irreversibility_motif in CSMs_becoming_irreversibility_motif:
+            if CSM_becoming_irreversibility_motif not in CSMs_wo_duplication:
+                CSMs_wo_duplication.append(CSM_becoming_irreversibility_motif)
             
-        irreversibility_enhancing_subnets_and_coherency_conditions_not_superset = self._delete_irreversibility_enhancing_subnet_which_is_superset(irreversibility_enhancing_subnets_and_coherency_conditions_not_duplicated)
+        # irreversibility_enhancing_subnets_and_coherency_conditions_not_superset = self._delete_irreversibility_enhancing_subnet_which_is_superset(irreversibility_enhancing_subnets_and_coherency_conditions_not_duplicated)
+        minimal_CSMs_becoming_irreversibility_motif = self._filter_for_minimal_CSMs(CSMs_wo_duplication)
         
-        self._convert_selected_irreversibility_enhancing_subnets_to_irreversibility_kernel(irreversibility_enhancing_subnets_and_coherency_conditions_not_superset)
+        self._save_irreversibility_motifs_and_coherency_conditions(minimal_CSMs_becoming_irreversibility_motif)
     
-    def _delete_irreversibility_enhancing_subnet_which_is_superset(self, irreversibility_enhancing_subnets_and_coherency_conditions):
-        """delete irreversibility_enhancing_subnet which is superset of other irreversibility_enhancing_subnet"""
+    def _filter_for_minimal_CSMs(self, list_of_CSMs):
+        """among CSMs, filter for minimal CSMs"""
         changed = True
 
         while changed:
             changed = False
             to_remove = []
 
-            for i,j in itertools.permutations(range(len(irreversibility_enhancing_subnets_and_coherency_conditions)), 2):
-                irreversibility_enhancing_subnet_and_coherency_condition_i = irreversibility_enhancing_subnets_and_coherency_conditions[i]
-                irreversibility_enhancing_subnet_i = irreversibility_enhancing_subnet_and_coherency_condition_i[0]
-                irreversibility_enhancing_subnet_and_coherency_condition_j = irreversibility_enhancing_subnets_and_coherency_conditions[j]
-                irreversibility_enhancing_subnet_j = irreversibility_enhancing_subnet_and_coherency_condition_j[0]
+            for i,j in itertools.permutations(range(len(list_of_CSMs)), 2):
+                CSM_ith = list_of_CSMs[i]
+                feedback_part_of_CSM_ith = CSM_ith[0]
+                CSM_jth = list_of_CSMs[j]
+                feedback_part_of_CSM_jth = CSM_jth[0]
 
-                if irreversibility_enhancing_subnet_i == irreversibility_enhancing_subnet_j:
-                    coherency_condition_i = irreversibility_enhancing_subnet_and_coherency_condition_i[1]
-                    coherency_condition_j = irreversibility_enhancing_subnet_and_coherency_condition_j[1]
-                    if self._dict1_contain_dict2(coherency_condition_i, coherency_condition_j):
-                        to_remove.append(irreversibility_enhancing_subnet_and_coherency_condition_i)
+                if feedback_part_of_CSM_ith == feedback_part_of_CSM_jth:
+                    CSM_condition_i = CSM_ith[1]
+                    CSM_condition_j = CSM_jth[1]
+                    if self._dict1_contain_dict2(CSM_condition_i, CSM_condition_j):
+                        to_remove.append(CSM_ith)
                         break
 
-                elif irreversibility_enhancing_subnet_i.issuperset(irreversibility_enhancing_subnet_j):
-                    to_remove.append(irreversibility_enhancing_subnet_and_coherency_condition_i)
+                elif feedback_part_of_CSM_ith.issuperset(feedback_part_of_CSM_jth):
+                    to_remove.append(CSM_ith)
                     break
             
             if to_remove:
-                irreversibility_enhancing_subnets_and_coherency_conditions = [subnet_and_condition for subnet_and_condition in irreversibility_enhancing_subnets_and_coherency_conditions if subnet_and_condition not in to_remove]
+                list_of_CSMs = [CSM_in_list for CSM_in_list in list_of_CSMs if CSM_in_list not in to_remove]
                 changed = True
-        
-        return irreversibility_enhancing_subnets_and_coherency_conditions
 
-    def _convert_selected_irreversibility_enhancing_subnets_to_irreversibility_kernel(self, selected_irreversibility_enhancing_subnets):
-        for subnet_and_coherency_condition in selected_irreversibility_enhancing_subnets:
-            expanded_node_names_in_subnet = subnet_and_coherency_condition[0]
-            coherency_condition = subnet_and_coherency_condition[1]
+        return list_of_CSMs
 
-            nodes_in_subnet = set()
-            for expanded_node_name in expanded_node_names_in_subnet:
+    def _save_irreversibility_motifs_and_coherency_conditions(self, CSMs_becoming_irreversibility_motif):
+        for CSM_becoming_irreversibility_motif in CSMs_becoming_irreversibility_motif:
+            irreversibility_motif = CSM_becoming_irreversibility_motif[0]
+            coherency_condition = CSM_becoming_irreversibility_motif[1]
+
+            nodes_in_irreversibility_motif = set()
+            for expanded_node_name in irreversibility_motif:
                 original_node_name = self._get_original_node_name_from_expanded_node_name(expanded_node_name)
-                nodes_in_subnet.add(original_node_name)
-            self.irreversibility_motifs.append(nodes_in_subnet)
+                nodes_in_irreversibility_motif.add(original_node_name)
+            self.irreversibility_motifs.append(nodes_in_irreversibility_motif)
             
             self.coherency_conditions.append(coherency_condition)
         
@@ -194,13 +203,11 @@ class ITP:
 
     def _make_expanded_subnet_of_non_cyclic_basal_rev(self):
         """Creates an expanded subnetwork corresponding to the non-cyclic  
-        portion of attractor_basal_rev.  
+        nodes of attractor_basal_rev.
 
-        Feedback loops found in this subnetwork represent positive feedback loops  
-        that satisfy coherency in the non-cyclic portion of attractor_basal_rev.
-        (i.e. irreversibility enhancing positive feedback loops)
+        in this expanded subnetwork, conditionally stable motifs (CSMs) are found.
 
-        When searching for feedback loops in expanded_subnet, each loop must contain  
+        When searching for CSMs in expanded_subnet, each CSM must contain  
         at least one expanded node with a node-state pair different from attractor_basal_irrev.  
 
         Returns both the expanded subnetwork and a list of names of such expanded nodes."""  
@@ -218,6 +225,9 @@ class ITP:
 
         expanded_nodes_basal_rev_only = []        
         non_cyclic_part_basal_rev_only = self._difference_between_dict(self.non_cyclic_part_basal_rev, self.non_cyclic_part_basal_irrev)
+        # nodes with non-cyclic state value in attractor_basal_rev are selected,
+        # which have cyclic state value in attractor_basal_irrev or
+        # different non-cyclic state value in attractor_basal_irrev.
 
         for node_in_basal_rev_only, state_in_basal_rev_only in non_cyclic_part_basal_rev_only.items():
             dict_form_of_expanded_node = {node_in_basal_rev_only:state_in_basal_rev_only}
@@ -231,25 +241,33 @@ class ITP:
 
         return expanded_subnet, expanded_nodes_basal_rev_only
 
-    def _find_feedback_loops_from_expanded_net_containing_specific_nodes(self, expanded_net, specific_expanded_nodes=[], max_len=0, fixed_nodes=[]):
+    def _find_feedback_loops_from_expanded_net_containing_specific_nodes(self, 
+                                                                         expanded_net, 
+                                                                         specific_expanded_nodes=[], 
+                                                                         max_len=0, 
+                                                                         fixed_nodes=[]):
         """Finds and returns feedback loops in the given expanded network  
         that contain at least one expanded node from specific_expanded_nodes.
-        the found feedback loops can be used to find irreversibility-enhancing positive feedback loops.
-        positive feedback loops should not contain any fixed nodes in the network.
-        
+        selected positive feedback loops should not contain any fixed nodes (like mutated nodes) in the network.
+
         max_len: maximum length of the feedback loop to be searched.
         If max_len is 0, the length of the feedback loop is not limited."""
         feedback_loops = []
         list_of_edges = []
 
-        expanded_nodes_in_list_of_edges_wo_specific_node = set()
+        # expanded_nodes_in_list_of_edges_wo_specific_node = set()
+        all_expanded_nodes_in_net = set()
         for edge in expanded_net.edges():
             list_of_edges.append(edge)
-            expanded_nodes_in_list_of_edges_wo_specific_node.update(edge)
+            # expanded_nodes_in_list_of_edges_wo_specific_node.update(edge)
+            all_expanded_nodes_in_net.update(edge)
 
         specific_expanded_nodes = set(specific_expanded_nodes)
-        specific_expanded_nodes.intersection_update(expanded_nodes_in_list_of_edges_wo_specific_node)
+        # specific_expanded_nodes.intersection_update(expanded_nodes_in_list_of_edges_wo_specific_node)
+        specific_expanded_nodes.intersection_update(all_expanded_nodes_in_net)
+        # specific expanded nodes which exist in expanded network are selected.
 
+        expanded_nodes_in_list_of_edges_wo_specific_node = all_expanded_nodes_in_net
         while specific_expanded_nodes:
             specific_expanded_node = specific_expanded_nodes.pop()
             cycle_finder = Find_cycles_containing_the_node(specific_expanded_node, list_of_edges)
@@ -288,45 +306,50 @@ class ITP:
         
         return feedback_loops_not_containing_fixed_nodes
                     
-    def _find_irreversibility_enhancing_subnet_and_corresponding_coherency_conditions(self, feedback_loops_in_expanded_net, i_comb):
-        """by combining i_comb number of irreversibility-enhancing positive feedback loops (feedback_loops_in_expanded_net),
-        find irreversibility-enhancing subnet and corresponding coherency condition"""
-        irreversibility_enhancing_subnets_and_coherency_conditions = []
-        feedback_loops_used_for_each_irreversibility_enhancing_subnet = []
+    def _make_CSMs_combined_from_i_num_CSMs(self, feedback_loops_in_expanded_net, i_comb):
+        """by combining i_comb number of CSMs (feedback_loops_in_expanded_net),
+        find CSM which can be irreversibility motif & corresponding coherency condition"""
+        CSMs_in_combination = []
+        # irreversibility_enhancing_subnets_and_coherency_conditions = []
+        # feedback_loops_used_for_each_irreversibility_enhancing_subnet = []
+        feedback_loops_used_for_CSM_combination = []
 
         for feedback_loops_to_combine in itertools.combinations(feedback_loops_in_expanded_net, i_comb):
-            nodes_in_irreversibility_enhancing_subnet, coherency_condition = self._combine_irreversibility_enhancing_positive_feedback_loops(feedback_loops_to_combine)
-            irreversibility_enhancing_subnets_and_coherency_conditions.append((nodes_in_irreversibility_enhancing_subnet, coherency_condition))
-            feedback_loops_used_for_each_irreversibility_enhancing_subnet.append(feedback_loops_to_combine)
+            CSM_feedback_nodes, CSM_condition = self._combine_CSMs_to_make_larger_CSM(feedback_loops_to_combine)
+            # irreversibility_enhancing_subnets_and_coherency_conditions.append((nodes_in_irreversibility_enhancing_subnet, coherency_condition))
+            CSMs_in_combination.append((CSM_feedback_nodes, CSM_condition))
+            # feedback_loops_used_for_each_irreversibility_enhancing_subnet.append(feedback_loops_to_combine)
+            feedback_loops_used_for_CSM_combination.append(feedback_loops_to_combine)
         
-        return irreversibility_enhancing_subnets_and_coherency_conditions, feedback_loops_used_for_each_irreversibility_enhancing_subnet
+        # return irreversibility_enhancing_subnets_and_coherency_conditions, feedback_loops_used_for_each_irreversibility_enhancing_subnet
+        return CSMs_in_combination, feedback_loops_used_for_CSM_combination
         
-    def _combine_irreversibility_enhancing_positive_feedback_loops(self, feedback_loops_to_combine):
-        """Combines irreversibility-enhancing positive feedback loops (feedback_loops_to_combine)  
-        to construct an irreversibility-enhancing subnet.  
-        Returns the set of nodes that constitute the subnet and its coherency condition."""
-        nodes_in_irreversibility_enhancing_subnet = set()
-        coherency_condition = {}
+    def _combine_CSMs_to_make_larger_CSM(self, feedback_loops_to_combine):
+        """Combines CSMs (feedback_loops_to_combine)  
+        to construct a larger CSM.  
+        Returns the set of nodes that constitute the CSM feedback and its condition."""
+        CSM_feedback_nodes = set()
+        CSM_condition = {}
         # get set of nodes in the irreversibility-enhancing subnet
         # each element is node name of the expanded network
         # it also contains composite nodes
         for feedback_loop in feedback_loops_to_combine:
-            nodes_in_irreversibility_enhancing_subnet.update(feedback_loop)
+            CSM_feedback_nodes.update(feedback_loop)
         
         composite_nodes = set()
-        for node_name in nodes_in_irreversibility_enhancing_subnet:
-            expanded_node_info = self._get_info_of_expanded_node(node_name)
+        for expanded_node_name in CSM_feedback_nodes:
+            expanded_node_info = self._get_info_of_expanded_node(expanded_node_name)
             if expanded_node_info.is_composite():
-                composite_nodes.add(node_name)                
+                composite_nodes.add(expanded_node_name)
                 regulators_of_composite = set(expanded_node_info.get_regulators_of_composite())
-                for regulator in regulators_of_composite.difference(nodes_in_irreversibility_enhancing_subnet):
-                    coherency_condition = {**coherency_condition, **self._get_info_of_expanded_node(regulator).dict_form}
+                for regulator in regulators_of_composite.difference(CSM_feedback_nodes):
+                    CSM_condition = {**CSM_condition, **self._get_info_of_expanded_node(regulator).dict_form}
         
-        nodes_in_irreversibility_enhancing_subnet.difference_update(composite_nodes)
+        CSM_feedback_nodes.difference_update(composite_nodes)
         # through this process, the composite node is removed from the set of nodes 
         # in the set of nodes in irreversibility-enhancing subnet
         
-        return nodes_in_irreversibility_enhancing_subnet, coherency_condition
+        return CSM_feedback_nodes, CSM_condition
     
     def _get_info_of_expanded_node(self, expanded_node_name):
         return self._get_expanded_network().nodes()[expanded_node_name]['info']

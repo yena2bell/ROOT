@@ -174,6 +174,7 @@ def highest_SCCs_finding(llSCC, lt_SCClinks, b_onenodeSCC = False):
     lt_SCClinks can be result of net_of_SCCs function
     this function returns SCC number which has no upper SCCs
     if b_onenodeSCC == False, then highest SCCs should have more than 2 nodes"""
+    lt_SCClinks = lt_SCClinks.copy()
     l_ihighest_hierarchy = []
     for i in range(len(llSCC)):
         for t_link in lt_SCClinks:
@@ -214,6 +215,12 @@ def highest_SCCs_finding(llSCC, lt_SCClinks, b_onenodeSCC = False):
             l_candidate = list(set(l_candidate))
 
     return [llSCC[i] for i in l_ihighest_hierarchy]
+
+
+def lowest_SCCs_finding(llSCC, lt_SCClinks, b_onenodeSCC = False):
+    lt_SCClinks_reversed = [(t_link[1], t_link[0]) for t_link in lt_SCClinks]
+    return highest_SCCs_finding(llSCC, lt_SCClinks_reversed, b_onenodeSCC)
+
 
 def decompose_to_SCC_from_matrix(matrix):
     l_l_SCC = []

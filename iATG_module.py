@@ -1,7 +1,7 @@
 from itertools import zip_longest
 
 from Attractor_landscape_calculation import Attractor_landscape_for_specific_IC
-from SCC_decomposition import SCC_decomposition
+import SCC_decomposition
 from iCA_module import iCA
 from Expanded_net_analysis import make_expanded_net_using_dynamics_pyboolnet
 
@@ -259,13 +259,15 @@ class iATG:
         
         after finding iCAs, calculate the size of each iCA."""
         self.iCAs = [] #initialize
-        SCCs_in_iATG = SCC_decomposition(self.attractor_transitions_induced_by_IC_change)
-        #filter SCC composed of single attractor
-        for SCC in SCCs_in_iATG:
-            if len(SCC) > 1:
-                ica = iCA(self, SCC)
-                ica.set_phenotype_nodes(self.phenotype_nodes)
-                self.iCAs.append(ica)
+        SCCs_in_iATG = SCC_decomposition.SCC_decomposition(self.attractor_transitions_induced_by_IC_change)
+        net_of_SCCs = SCC_decomposition.net_of_SCCs(SCCs_in_iATG, self.attractor_transitions_induced_by_IC_change)
+
+        SCCs_no_outgoing_edges = SCC_decomposition.lowest_SCCs_finding(SCCs_in_iATG, net_of_SCCs, False)
+        # SCCs in `SCCs_no_outgoing_edges` have more than 2 attractors
+        for SCC in SCCs_no_outgoing_edges:
+            ica = iCA(self, SCC)
+            ica.set_phenotype_nodes(self.phenotype_nodes)
+            self.iCAs.append(ica)
         
         self._calculate_iCA_size_and_steady_state_probabilities()
     
@@ -322,8 +324,11 @@ class iATG:
 
         
 
-    def _calculate_iCA_size_and_steady_state_probabilities(self):
-        """Calculate the size of each iCA."""
+    def _calculate_iCA_size_and_steady_state_probabilities(self, near_zero_threshold=0.0001):
+        """Calculate the size of each iCA.
+        
+        if the sum of basin ratios are less than `near_zero_threshold`,
+        it is considered as zero."""
         #initialize the basin_ratio_now and basin_ratio_tmp for each attractor in iATG
         basin_ratios_now = {}
         basin_ratios_tmp = {}
@@ -341,8 +346,10 @@ class iATG:
             attr_tuple_forms_not_in_iCA.difference_update(ica.attractors_in_iCA)
         
 
-        basin_ratios_not_zero = {key:val for key, val in basin_ratios_now.items() if val != 0}
-        while attr_tuple_forms_not_in_iCA.intersection(basin_ratios_not_zero):
+        # basin_ratios_not_zero = {key:val for key, val in basin_ratios_now.items() if val != 0}
+        basin_ratios_sum_not_in_iCAs = sum([val for key, val in basin_ratios_now.items() if key in attr_tuple_forms_not_in_iCA])
+        while basin_ratios_sum_not_in_iCAs > near_zero_threshold:
+        # while attr_tuple_forms_not_in_iCA.intersection(basin_ratios_not_zero):
             for attr_tuple_form, TPs_from_source_attractor in self.TPs.items():
                 for attr_target_tuple_form, TP in TPs_from_source_attractor.items():
                     basin_ratios_tmp[attr_target_tuple_form] += basin_ratios_now[attr_tuple_form]*TP
@@ -352,7 +359,8 @@ class iATG:
                 basin_ratios_now[attr_tuple_form] += basin_ratios_tmp[attr_tuple_form]
                 basin_ratios_tmp[attr_tuple_form] = 0
             
-            basin_ratios_not_zero = {key:val for key, val in basin_ratios_now.items() if val != 0}
+            # basin_ratios_not_zero = {key:val for key, val in basin_ratios_now.items() if val != 0}
+            basin_ratios_sum_not_in_iCAs = sum([val for key, val in basin_ratios_now.items() if key in attr_tuple_forms_not_in_iCA])
         
         for ica in self.iCAs:
             ica._calculate_size(basin_ratios_now)

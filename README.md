@@ -31,6 +31,12 @@ git clone https://github.com/yena2bell/ROOT.git
 
 - pyBoolnet (v3.0.11) https://github.com/hklarner/pyboolnet
 
+- seaborn (v0.13.2) https://seaborn.pydata.org/
+
+- scipy (v1.11.4) https://scipy.org/
+
+- matplotlib (v3.7.1) https://matplotlib.org/
+
 ## How to use ROOT
 1. Open `ROOT_template/ROOT_template.ipynb` using Jupyter Notebook and ensure it's connected to a Python 3 kernel with the required packages installed.
 2. In the notebook, follow the steps in order.

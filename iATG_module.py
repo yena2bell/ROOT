@@ -104,9 +104,45 @@ class iATG:
             self.calculate_attractor_landscapes_for_each_IC_using_all_initials()
         else:
             print("Calculating attractor landscapes using random initial states.")
-            self.calcuate_attractor_landscape_for_each_IC_using_random_initials(waiting_num, difference_threshold, verbose)
+            self.calculate_attractor_landscape_for_each_IC_using_random_initials(waiting_num, difference_threshold, verbose)
             pass
-    
+
+    def calculate_asynchro_att_landscapes_for_each_IC(self,
+                                                      repeat_for_each_state=50,
+                                                      max_trajectory_len=1000,
+                                                      complex_att_search=100,
+                                                      complex_att_search_extend=100,
+                                                      use_all_initials=True,
+                                                   waiting_num=10000, 
+                                                   difference_threshold=0.0001,
+                                                   verbose=False):
+        """"asynchronous update state transition으로 만들어지는 attractor landscape를
+        IC_basal과 IC_transition에서 각각 계산한다. 
+        use_all_initials, waiting_num, difference_threshold는 synchornous의 경우와 동일
+        
+        `repeat_for_each_state`는 개별 state에 대해, 그 state에서 시작하는 trajectories 계산 횟수.
+        asynchronous update의 randomness에 대비하기 위해 반복이 필요함.
+        `max_trajectory_len`는 trajectory 계산 시, trajectory의 최대 길이. 
+        trajectory가 이 길이를 넘어서면 계산을 중단함.
+        trajectory 계산 중, 이미 방문한 state에 다시 재방문하게 되면,
+        그 state를 포함하는 attractor가 존재하는지 확인한다.
+        이 때, 그 state의 downstream states를 `complex_att_search`개 만큼 조사함
+        complex attract에 포함되지 않는 것으로 판정된 state를 다시 방문하게 될 경우,
+        조사하는 state의 개수를 `complex_att_search_extend`개 더 늘려서 재조사."""
+        if use_all_initials:
+            print("Calculating asynchronous update attractor landscapes using all initial states.")
+            self.calculate_asynchro_att_landscapes_for_each_IC_using_all_initials(repeat_for_each_state,
+                                                                                    max_trajectory_len,
+                                                                                    complex_att_search,
+                                                                                    complex_att_search_extend)
+        else:
+            print("Calculating asynchronous update attractor landscapes using random initial states.")
+            self.calculate_asynchro_att_landscape_for_each_IC_using_random_initials(repeat_for_each_state,
+                                                      max_trajectory_len,
+                                                      complex_att_search,
+                                                      complex_att_search_extend,
+                                                      waiting_num, difference_threshold, verbose)
+
     def calculate_attractor_landscapes_for_each_IC_using_all_initials(self):
         """Calculate the attractor landscape for IC_basal and IC_transition 
         using all network state values."""
@@ -115,13 +151,31 @@ class iATG:
         print("\nCalculating attractor landscape on input configuration {} using all initial states.".format(self.IC_transition))
         self.attractor_landscape_transition = self.calculate_attractor_landscape_for_specific_IC_using_all_initials(self.IC_transition)
 
-    def calcuate_attractor_landscape_for_each_IC_using_random_initials(self, waiting_num, difference_threshold, verbose):
+    def calculate_asynchro_att_landscapes_for_each_IC_using_all_initials(self, repeat_for_each_state=50, max_trajectory_len=1000, complex_att_search=100, complex_att_search_extend=100):
+        """Calculate the attractor landscape using asynchronous updates 
+        for IC_basal and IC_transition 
+        using all network state values."""
+        print("\nCalculating asynchronous attractor landscape on input configuration {} using all initial states.".format(self.IC_basal))
+        self.attractor_landscape_basal = self.calculate_asynchro_att_landscape_for_specific_IC_using_all_initials(self.IC_basal, repeat_for_each_state, max_trajectory_len, complex_att_search, complex_att_search_extend)
+        print("\nCalculating asynchronous attractor landscape on input configuration {} using all initial states.".format(self.IC_transition))
+        self.attractor_landscape_transition = self.calculate_asynchro_att_landscape_for_specific_IC_using_all_initials(self.IC_transition, repeat_for_each_state, max_trajectory_len, complex_att_search, complex_att_search_extend)
+
+    def calculate_attractor_landscape_for_each_IC_using_random_initials(self, waiting_num, difference_threshold, verbose):
         """Calculate the attractor landscape for IC_basal and IC_transition 
         using random initial network state values."""
         print("\nCalculating attractor landscape on input configuration {} using random initial states.".format(self.IC_basal))
         self.attractor_landscape_basal = self.calculate_attractor_landscape_for_specific_IC_using_random_initials(self.IC_basal, waiting_num, difference_threshold, verbose)
         print("\nCalculating attractor landscape on input configuration {} using random initial states.".format(self.IC_transition))
         self.attractor_landscape_transition = self.calculate_attractor_landscape_for_specific_IC_using_random_initials(self.IC_transition, waiting_num, difference_threshold, verbose)
+    
+    def calculate_asynchro_att_landscape_for_each_IC_using_random_initials(self, repeat_for_each_state=50, max_trajectory_len=1000, complex_att_search=100, complex_att_search_extend=100, 
+                                                                           waiting_num=10000, difference_threshold=0.0001, verbose=False):
+        """Calculate the asynchronous attractor landscape for IC_basal and IC_transition 
+        using random initial network state values."""
+        print("\nCalculating asynchronous attractor landscape on input configuration {} using random initial states.".format(self.IC_basal))
+        self.attractor_landscape_basal = self.calculate_asynchro_att_landscape_for_specific_IC_using_random_initials(self.IC_basal, waiting_num, difference_threshold, verbose, repeat_for_each_state, max_trajectory_len, complex_att_search, complex_att_search_extend)
+        print("\nCalculating asynchronous attractor landscape on input configuration {} using random initial states.".format(self.IC_transition))
+        self.attractor_landscape_transition = self.calculate_asynchro_att_landscape_for_specific_IC_using_random_initials(self.IC_transition, waiting_num, difference_threshold, verbose, repeat_for_each_state, max_trajectory_len, complex_att_search, complex_att_search_extend)
 
     def set_empty_attractor_landscape_for_each_IC_wo_calculation(self):
         """this function is used for reversing control"""
@@ -134,11 +188,25 @@ class iATG:
         attractor_landscape_for_IC.calculate_attractor_basinratios_from_all_initial_states()
 
         return attractor_landscape_for_IC
+
+    def calculate_asynchro_att_landscape_for_specific_IC_using_all_initials(self, IC:dict, repeat_for_each_state=50, max_trajectory_len=1000, complex_att_search=100, complex_att_search_extend=100):
+        """Calculate the asynchronous attractor landscape for a specific input configuration (IC)."""
+        attractor_landscape_for_IC = Attractor_landscape_for_specific_IC(self.dynamics_Boolean_net, IC, self.fixed_node_state_map)
+        attractor_landscape_for_IC.calculate_asynchro_att_basinratios_from_all_initial_states(repeat_for_each_state, max_trajectory_len, complex_att_search, complex_att_search_extend)
+
+        return attractor_landscape_for_IC
     
     def calculate_attractor_landscape_for_specific_IC_using_random_initials(self, IC:dict, waiting_num, difference_threshold, verbose):
         """Calculate the attractor landscape for a specific input configuration (IC)."""
         attractor_landscape_for_IC = Attractor_landscape_for_specific_IC(self.dynamics_Boolean_net, IC, self.fixed_node_state_map)
         attractor_landscape_for_IC.calculate_attractor_basinratios_from_random_initial_states(waiting_num, difference_threshold, [], verbose)
+
+        return attractor_landscape_for_IC
+    
+    def calculate_asynchro_att_landscape_for_specific_IC_using_random_initials(self, IC:dict, waiting_num, difference_threshold, verbose, repeat_for_each_state=50, max_trajectory_len=1000, complex_att_search=100, complex_att_search_extend=100):
+        """Calculate the asynchronous attractor landscape for a specific input configuration (IC)."""
+        attractor_landscape_for_IC = Attractor_landscape_for_specific_IC(self.dynamics_Boolean_net, IC, self.fixed_node_state_map)
+        attractor_landscape_for_IC.calculate_asynchro_att_basinratios_from_random_initial_states(waiting_num, difference_threshold, [], verbose, repeat_for_each_state, max_trajectory_len, complex_att_search, complex_att_search_extend)
 
         return attractor_landscape_for_IC
     

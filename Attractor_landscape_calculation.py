@@ -4,7 +4,8 @@ import random
 import math
 import itertools
 
-from Network_state_and_attractor import Network_state, Attractor 
+from Network_state_and_attractor import Network_state, Attractor
+import SCC_decomposition
 
 class Attractor_landscape_for_specific_IC:
     """calculate attractor landscape for a specific input configuraiton,
@@ -286,13 +287,11 @@ class Asynchro_att_landscape_for_specific_IC(Attractor_landscape_for_specific_IC
                 fixed_node_state_map:dict={},
                 repeat_for_each_state=50, 
                 max_trajectory_len=1000, 
-                complex_att_search=100, 
-                complex_att_search_extend=100):
+                complex_att_search=100):
         super().__init__(dynamics_Boolean_net, IC, fixed_node_state_map)
         self.repeat_for_each_state = repeat_for_each_state
         self.max_trajectory_len = max_trajectory_len
         self.complex_att_search = complex_att_search
-        self.complex_att_search_extend = complex_att_search_extend
 
         self.attindex_initial_state_arrival_count_map = {}
     
@@ -393,24 +392,33 @@ class Asynchro_att_landscape_for_specific_IC(Attractor_landscape_for_specific_IC
         수행할 예정이므로.
         2.2 trajectory에 새로이 추가된 network state가 이미 방문한 network state
         중 하나와 같으면, 그 state를 포함하는 complex attractor가 존재할 가능성이 있음.
-        그 재방문 network state 위주로 self.complex_att_search 개수의 
-        downstream states를 breadth first search로 탐색하여, complex attractor가 존재하는지 판단할 예정임.
-        2.3. 재방문 network state의 주변에 complex attractor가 없음이 판정되면,
-        그 재방문 network state를 기록함. 그리고 trajectory를 다시 연장해 나감.
-        이 때, complex attractor 탐색 과정에서 찾아진, 재방문 network state 포함하면서
-        out-going edge가 존재하는 SCC의 외부 state로 trajectory가 이어지도록 
-        trajectory를 연장.
-        2.4. complex attractor를 찾지 못했던 재방문 network state에 또다시 방문하게 될 경우,
-        다시 complex attractor를 탐색. 이 때, downstream states의 탐색 개수를
-        self.complex_att_search_extend 더 늘려서 수행. 
+        
+        trajectory에서 그 재방문 network state로 이어지는 feedback loops를 찾아서
+        그것을 하나의 SCC로 간주하고, 그 SCC에 포함된 nodes의 downstream nodes를
+        self.complex_att_search 개 분석해서, 그 SCC에 더 포함되는 nodes가 있는지 검사
+        그 SCC가 outgoing edge가 없으면 complex attractor가 된다.
+
+        그 SCC가 outgoing edge가 있으면,
+        이 SCC의 nodes를 trajectory에 추가한 뒤, outgoing edge 중 하나를 선택해서
+        trajectory를 다시 연장해 나감.
+        
+        2.4. trajectory에 새로이 추가된 network state가 기존에 찾은
+        outgoing edge가 있는 SCC에 다시 방문시, 새로이 추가된 feedback을 포함해
+        그 SCC를 확장하고, 다시 SCC의 downstream nodes를 self.complex_att_search 개 
+        추가 분석하여 SCC를 재검사 한다.
         """
         trajectory = [network_state_value_start]
         # trajectory[i] means the network state after i steps from the starting network state
         # trajectory[0] is the starting network state
-        trajectory_len_without_repeated_states = 1
-        repeated_visit_network_state_counter = {}
+        
+        SCC_nodes_in_trajectory = []
+        # (a,b) in this list means that trajectory[a:b+1] makes a SCC
+        # this not assure taht trajectory[a:b+1] is a maximal SCC
+        # SCC is considered as a single network state in asynchronous state transition graph
 
-        while trajectory_len_without_repeated_states <= self.max_trajectory_len:
+        test_flag = False
+
+        while len(trajectory) <= self.max_trajectory_len:
             network_state_value_next = model_state_asynchronous_update_using_pyboolnet(self.dynamics_Boolean_net, 
                                                                         trajectory[-1], 
                                                                         self.fixed_node_state_map_and_IC)
@@ -425,21 +433,113 @@ class Asynchro_att_landscape_for_specific_IC(Attractor_landscape_for_specific_IC
                 attractor.put_attractor_states_in_asynchro_using_network_state_forms(trajectory[-1:], self.fixed_node_state_map)
 
                 return trajectory, attractor, len(self.attractor_index_map)
-            # elif network_state_value_next in trajectory:
-            #     # this trajectory reaches a state already visited in the same trajectory, 
-            #     # which suggests the possibility of a complex attractor.
-            #     # Therefore, check if there is a complex attractor around the re-visited state.
-            #     # If there is, return the trajectory and the index of that attractor.
-            #     # If not, record that re-visited state as a state that does not form a complex attractor,
-            #     # and continue to extend the trajectory.
-            #     searching_states_num = self.complex_att_search + self.complex_att_search_extend*repeated_visit_network_state_counter.get(network_state_value_next.state_int_form, 0)
-            #     repeated_visit_network_state_counter[network_state_value_next.state_int_form] = repeated_visit_network_state_counter.get(network_state_value_next.state_int_form, 0) + 1
+            elif network_state_value_next in trajectory:
+                # this trajectory reaches a state already visited in the same trajectory, 
+                # which suggests the possibility of a complex attractor.
+                # Therefore, check if there is a complex attractor around the re-visited state.
+                # If there is a complex attractor, return the trajectory and the complex attractor.
+                test_flag = True
+                index_of_revisited_state = trajectory.index(network_state_value_next)
+                SCC_formed = (index_of_revisited_state, len(trajectory)-1)
 
-            #     # 이제 여기에 그 코드를 구현하면 되는데, 그 전에 complex att가 없을것 같은 model에 대해 
-            #     # 먼저 한 번 구현해 보자.
+                trajectory_int_form = [state.get_state_int_form() for state in trajectory]
+                print(trajectory_int_form)
+                print("SCC_formed: ", SCC_formed)
+                print(trajectory_int_form[SCC_formed[0]:SCC_formed[1]+1])
+
+                for index_of_SCC, SCC_previous in enumerate(SCC_nodes_in_trajectory):
+                    if SCC_previous[0] < SCC_formed[0] and SCC_previous[1] >= SCC_formed[0]:
+                        SCC_formed = (SCC_previous[0], SCC_formed[1])
+                        SCC_nodes_in_trajectory.pop(index_of_SCC)
+                        break
+                # newly found feedback (SCC_formed) is combinded 
+                # with the previous SCC (SCC_previous) if they are overlapped, 
+                # and the combined one is considered as the new SCC_formed.
+
+                # print(SCC_nodes_in_trajectory, "SCC_nodes_in_trajectory before update")
+                # print("SCC_formed_new", SCC_formed)
+                # print(SCC_nodes_in_trajectory, "SCC_nodes_in_trajectory after update")
+
+                network_states_in_extended_SCC, network_states_directly_downstream_of_SCC = self._search_downstream_of_prev_SCC(trajectory[SCC_formed[0]:])
+                
+                # network_states_in_extended_SCC_int_form = [state.get_state_int_form() for state in network_states_in_extended_SCC]
+                # print(network_states_in_extended_SCC)
+                # print(network_states_in_extended_SCC_int_form, "network_states_in_extended_SCC")
+                # for ns_down in network_states_directly_downstream_of_SCC:
+                #     print(ns_down.get_state_int_form(), "network_state_directly_downstream_of_SCC")
+
+                if not network_states_directly_downstream_of_SCC:
+                    # this trajectory reaches a new complex attractor
+                    comp_attractor = Attractor(self.dynamics_Boolean_net)
+                    comp_attractor.put_attractor_states_in_asynchro_using_network_state_forms(network_states_in_extended_SCC, self.fixed_node_state_map)
+
+                    return trajectory, comp_attractor, len(self.attractor_index_map)
+                else:
+                    # trajectory is more extended
+                    trajectory = trajectory[:SCC_formed[0]] + network_states_in_extended_SCC
+                    network_state_value_next = random.choice(network_states_directly_downstream_of_SCC)
+
+                    SCC_nodes_in_trajectory = [SCC_previous for SCC_previous in SCC_nodes_in_trajectory if SCC_previous[0] < SCC_formed[0]]
+                    SCC_formed = (SCC_formed[0], len(trajectory)-1)
+                    SCC_nodes_in_trajectory.append(SCC_formed)
+                    # SCC_previous which are contained in new SCC_formed are all deleted
+
+                    trajectory.append(network_state_value_next)
+
             else:
                 trajectory.append(network_state_value_next)
-                trajectory_len_without_repeated_states += 1
+    
+    def _search_downstream_of_prev_SCC(self, networks_states_in_SCC):
+        """calculate downstream network states for each network state forming SCC
+        and check that these downstream network states are also contained
+        in the SCC containing the previous SCC
+        only check the `self.complex_att_search` number of downstream network states
+        
+        return list of network states composing extended SCC
+        and list of network states not contained the SCC but directly downstream of the SCC"""
+        edges_for_SCC_calculation = []
+        stack_not_checked_queue = []
+        for state in networks_states_in_SCC:
+            if state not in stack_not_checked_queue:
+                stack_not_checked_queue.append(state)
+        already_checked = set()
+
+        while stack_not_checked_queue:
+            network_state = stack_not_checked_queue.pop(0)
+            int_form = network_state.get_state_int_form()
+            already_checked.add(int_form)
+            downstream_states = all_possible_asynchro_next_states(self.dynamics_Boolean_net, network_state, self.fixed_node_state_map_and_IC)
+
+            for downstream_state in downstream_states:
+                int_form_downstream = downstream_state.get_state_int_form()
+                edge = (int_form, int_form_downstream)
+                edges_for_SCC_calculation.append(edge)
+                if int_form_downstream not in already_checked:
+                    stack_not_checked_queue.append(downstream_state)
+            
+            if len(already_checked) >= self.complex_att_search+len(networks_states_in_SCC):
+                break
+        
+        SCC_extended = SCC_decomposition.get_SCC_containing_the_node(networks_states_in_SCC[0].get_state_int_form(), edges_for_SCC_calculation)
+        # its elements are all int form
+        SCC_extended_network_state_form = []
+        for int_form in SCC_extended:
+            network_state_in_SCC = Network_state(self.dynamics_Boolean_net)
+            network_state_in_SCC.put_state_int_form(int_form)
+            SCC_extended_network_state_form.append(network_state_in_SCC)
+        
+        int_form_outgoing_from_SCC = []
+        for edge_int_form in edges_for_SCC_calculation:
+            if edge_int_form[0] in SCC_extended and edge_int_form[1] not in SCC_extended:
+                int_form_outgoing_from_SCC.append(edge_int_form[1])
+        network_states_outgoing_from_SCC = []
+        for int_form in int_form_outgoing_from_SCC:
+            network_state_outgoing_from_SCC = Network_state(self.dynamics_Boolean_net)
+            network_state_outgoing_from_SCC.put_state_int_form(int_form)
+            network_states_outgoing_from_SCC.append(network_state_outgoing_from_SCC)
+        
+        return SCC_extended_network_state_form, network_states_outgoing_from_SCC
+        
 
     def calculate_asynchro_att_basinratios_from_random_initial_states(self, waiting_num=10000, 
                                                    difference_threshold=0.0001,
@@ -596,6 +696,43 @@ def model_state_asynchronous_update_using_pyboolnet(dynamics_pyboolnet,
     network_state_value_next = Network_state(dynamics_pyboolnet)
     network_state_value_next.put_state_dict_form(network_state_value_dict_form)
     return network_state_value_next
+
+def all_possible_asynchro_next_states(dynamics_pyboolnet, 
+                                    network_state_value_now:Network_state, 
+                                    node_fixed_state_map={}):
+    """Returns a list of all possible next states after an asynchronous update.
+    if the state is in point attractor, it returns empty list"""
+    possible_next_states = []
+    
+    network_state_value_dict_form = network_state_value_now.get_state_dict_form()
+    network_state_value_dict_form = network_state_value_now.apply_perturbation_to_dict_form_state(network_state_value_dict_form, node_fixed_state_map)
+    # `network_state_value_now` is overridden by `node_fixed_state_map
+    
+    # 1. 값이 고정되지 않은(non-fixed) 노드들만 필터링
+    non_fixed_nodes = [node for node in network_state_value_dict_form.keys() if node not in node_fixed_state_map]
+    
+    # 2. 업데이트 시 실제로 상태 변화를 일으키는 노드(candidates)를 탐색
+    changing_candidates = []
+    updated_values = {} # 중복 계산을 방지하기 위해 미리 저장
+    
+    for node in non_fixed_nodes:
+        # 외부 함수를 이용해 해당 노드의 next value를 계산
+        next_val = node_state_update_using_pyboolnet(dynamics_pyboolnet, network_state_value_dict_form, node)
+        
+        # 값이 달라지는 경우에만 후보군에 추가
+        if next_val != network_state_value_dict_form[node]:
+            changing_candidates.append(node)
+            updated_values[node] = next_val
+    
+    for node, next_val in updated_values.items():
+        next_state_dict_form = network_state_value_dict_form.copy()
+        next_state_dict_form[node] = next_val
+        
+        next_state_obj = Network_state(dynamics_pyboolnet)
+        next_state_obj.put_state_dict_form(next_state_dict_form)
+        possible_next_states.append(next_state_obj)
+    
+    return possible_next_states
 
 def node_state_update_using_pyboolnet(dynamics_pyboolnet, network_state_value_dict_form, nodename_to_update):
     """Computes the next state of a specific node (whose name is given by `nodename_to_update`)

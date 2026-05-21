@@ -2,7 +2,7 @@ import itertools
 
 import Expanded_net_analysis as ENA
 from Cycle_analysis import Find_cycles_containing_the_node
-from Attractor_landscape_calculation import Attractor_landscape_for_specific_IC
+from Attractor_landscape_calculation import Attractor_landscape_for_specific_IC, Asynchro_att_landscape_for_specific_IC
 
 import iATG_module
 
@@ -403,6 +403,58 @@ class ITP:
             probability += (probability_for_this_state / num_of_attractor_basal_rev_states)
         
         return probability
+    
+    def get_asynchronous_resetting_efficacy_score_of(self, control_strategy, verbose=False):
+        """`control_strategy` is given as a dictionary in the form of {node: state}.
+        When the model state is in `attractor_basal_rev`, 
+        the system applies the `control_strategy` to let the state converge to a new attractor through asynchronous update. 
+        Then, after removing `control_strategy`, 
+        it calculates the probability that the system returns to `attractor_basal_irrev` under asynchronous updating.
+
+        If `attractor_basal_rev` is a complex attractor or 
+        the new attractor obtained after applying `control_strategy` is a complex attractor, 
+        the probability is calculated under the assumption 
+        that the system is equally likely to be in any state of the complex attractor."""
+        dynamics_pyboolnet = self.iCA.iATG.dynamics_Boolean_net
+        IC_basal = self.iCA.iATG.IC_basal
+        fixed_node_state_map = self.iCA.iATG.fixed_node_state_map
+        
+        fixed_node_state_map_with_control_strategy = {**fixed_node_state_map, **control_strategy}
+        attractor_landscape_wo_control = self.iCA.iATG.attractor_landscape_basal
+        repeat_for_each_state = attractor_landscape_wo_control.repeat_for_each_state
+        max_trajectory_len = attractor_landscape_wo_control.max_trajectory_len
+        complex_att_search = attractor_landscape_wo_control.complex_att_search
+
+        attractor_landscape_controlled = Asynchro_att_landscape_for_specific_IC(dynamics_pyboolnet, IC_basal, fixed_node_state_map_with_control_strategy, 
+                                                                                repeat_for_each_state, max_trajectory_len, complex_att_search)
+        
+        attractor_basal_rev_object = self._get_attractor_object_using_attr_tuple_form(self.attr_basal_rev)
+        attractor_basal_irrev_object = self._get_attractor_object_using_attr_tuple_form(self.attr_basal_irrev)
+        
+        attractor_states_of_basal_rev = attractor_basal_rev_object.get_attractor_states()
+        num_of_attractor_basal_rev_states = len(attractor_states_of_basal_rev)
+
+        if verbose:
+            print("this attractor has {} states".format(num_of_attractor_basal_rev_states))
+            print("and for each state, {} number of traejectories are calculated".format(repeat_for_each_state))
+        probability = 0
+        for state_object in attractor_states_of_basal_rev:
+            index_att_controlled_map, index_probability_controlled_map = attractor_landscape_controlled.asynchro_repeated_converge_network_state_to_attractors(state_object)
+            # after applying control strategy,
+            # model converges to one of attractors in index_att_controlled_map
+
+            for index_under_control, attractor_object_under_control in index_att_controlled_map.items():
+                attractor_states_converged_after_control = attractor_object_under_control.get_attractor_states()
+                index_att_after_removing_control_map, index_probability_after_removing_control_map =attractor_landscape_wo_control.asynchro_repeated_converge_network_states_to_attractors(attractor_states_converged_after_control)
+                # after removing control strategy
+                # model eventually converges to one of attractor in index_att_after_removing_control_map
+
+                for index_after_removing_control, att_after_removing_control in index_att_after_removing_control_map.items():
+                    if att_after_removing_control == attractor_basal_irrev_object:
+                        probability_for_this_state = index_probability_controlled_map[index_under_control] * index_probability_after_removing_control_map[index_after_removing_control]
+                        probability += (probability_for_this_state / num_of_attractor_basal_rev_states)
+
+        return probability       
     
     def get_the_average_state_for_each_IC_by_applying(self, control_strategy, verbose=False):
         """`control_strategy` is given as a dictionary in the form of {node: state}.

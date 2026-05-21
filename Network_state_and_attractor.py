@@ -18,6 +18,9 @@ class Network_state:
     #
     def get_state_dict_form(self):
         return self._convert_int_form_to_dict_form(self.dynamics_pyboolnet, self.state_int_form)
+
+    def get_state_int_form(self):
+        return self.state_int_form
     
     def put_state_int_form(self, int_form):
         """ when this method is used, the 'inf_form' should be achieved by methods in this class"""
@@ -196,6 +199,22 @@ class Attractor:
             network_states.append(network_state_obj)
         #dictionary describing each network state is converted to Network_state object
         self.put_attractor_states_in_synchro_using_network_state_forms(network_states, perturbation)
+
+    def put_attractor_states_in_asynchro_using_network_state_forms(self, network_states_of_attractor=[], 
+                                                              perturbation={}):
+        """insert attractor information obtained from a asynchronous update.
+        Each network state must be a Network_state object, stored in a list.
+        order of list is not meaningful, since in asynchronous update, the order of network states in the attractor is not fixed."""
+        self.update_type = "asynchronous"
+        self.perturbation = perturbation.copy()
+
+        # network_states_of_attractor is ordered
+        network_states_of_att_not_duplicated = []
+        for network_state in network_states_of_attractor:
+            if network_state not in network_states_of_att_not_duplicated:
+                network_states_of_att_not_duplicated.append(network_state)
+        network_states_of_att_not_duplicated.sort() # sort the list of network states in ascending order based on their integer-converted values
+        self.attractor_states = network_states_of_att_not_duplicated
 
 
     #

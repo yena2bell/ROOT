@@ -416,8 +416,6 @@ class Asynchro_att_landscape_for_specific_IC(Attractor_landscape_for_specific_IC
         # this not assure taht trajectory[a:b+1] is a maximal SCC
         # SCC is considered as a single network state in asynchronous state transition graph
 
-        test_flag = False
-
         while len(trajectory) <= self.max_trajectory_len:
             network_state_value_next = model_state_asynchronous_update_using_pyboolnet(self.dynamics_Boolean_net, 
                                                                         trajectory[-1], 
@@ -438,14 +436,13 @@ class Asynchro_att_landscape_for_specific_IC(Attractor_landscape_for_specific_IC
                 # which suggests the possibility of a complex attractor.
                 # Therefore, check if there is a complex attractor around the re-visited state.
                 # If there is a complex attractor, return the trajectory and the complex attractor.
-                test_flag = True
                 index_of_revisited_state = trajectory.index(network_state_value_next)
                 SCC_formed = (index_of_revisited_state, len(trajectory)-1)
 
-                trajectory_int_form = [state.get_state_int_form() for state in trajectory]
-                print(trajectory_int_form)
-                print("SCC_formed: ", SCC_formed)
-                print(trajectory_int_form[SCC_formed[0]:SCC_formed[1]+1])
+                # trajectory_int_form = [state.get_state_int_form() for state in trajectory]
+                # print(trajectory_int_form)
+                # print("SCC_formed: ", SCC_formed)
+                # print(trajectory_int_form[SCC_formed[0]:SCC_formed[1]+1])
 
                 for index_of_SCC, SCC_previous in enumerate(SCC_nodes_in_trajectory):
                     if SCC_previous[0] < SCC_formed[0] and SCC_previous[1] >= SCC_formed[0]:
@@ -539,7 +536,48 @@ class Asynchro_att_landscape_for_specific_IC(Attractor_landscape_for_specific_IC
             network_states_outgoing_from_SCC.append(network_state_outgoing_from_SCC)
         
         return SCC_extended_network_state_form, network_states_outgoing_from_SCC
+
+    def asynchro_converge_network_state_to_attractor(self, network_state:Network_state):
+        """Return the attractor reached as a result of network state transitions 
+        from the given network state value, 
+        under the input configuration and fixed node state map of this attractor landscape."""
+        trajectory, att_arrrived, index_of_att = self._calculate_asynchro_trajectory_and_check(network_state)
+        return att_arrrived, index_of_att
+    
+    def asynchro_repeated_converge_network_state_to_attractors(self, network_state:Network_state):
+        """Return the attractors reached as a result of repeated network state transitions 
+        from the given network state value, 
+        under the input configuration and fixed node state map of this attractor landscape.
+        This method performs the convergence process multiple times 
+        and returns the attractors reachable and probabilities to reach them"""
+        index_count_map = {}
+        index_att_arrived_map = {}
+        for _ in range(self.repeat_for_each_state):
+            att_arrived, index_of_att = self.asynchro_converge_network_state_to_attractor(network_state)
+            if index_of_att not in index_count_map:
+                index_count_map[index_of_att] = 1
+                index_att_arrived_map[index_of_att] = att_arrived
+            else:
+                index_count_map[index_of_att] += 1
         
+        index_probability_map = {index:count/self.repeat_for_each_state for index, count in index_count_map.items()}
+        return index_att_arrived_map, index_probability_map
+
+    def asynchro_repeated_converge_network_states_to_attractors(self, network_states):
+        """return attractors reached as a result of repeated network state transitions 
+        from the given network states, 
+        under the input configuration and fixed node state map of this attractor landscape.
+        the probability of starting each network state is assumed to be uniform."""
+        index_att_arrived_map, index_probability_map = {}, {}
+        for network_state in network_states:
+            index_att_arrived_map_of_this_state, index_probability_map_of_this_state = self.asynchro_repeated_converge_network_state_to_attractors(network_state)
+            for index in index_att_arrived_map_of_this_state:
+                if index not in index_att_arrived_map:
+                    index_att_arrived_map[index] = index_att_arrived_map_of_this_state[index]
+                    index_probability_map[index] = index_probability_map_of_this_state[index]/len(network_states)
+                else:
+                    index_probability_map[index] += index_probability_map_of_this_state[index]/len(network_states)
+        return index_att_arrived_map, index_probability_map
 
     def calculate_asynchro_att_basinratios_from_random_initial_states(self, waiting_num=10000, 
                                                    difference_threshold=0.0001,

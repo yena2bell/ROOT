@@ -286,11 +286,9 @@ class Asynchro_att_landscape_for_specific_IC(Attractor_landscape_for_specific_IC
                 IC:dict, 
                 fixed_node_state_map:dict={},
                 repeat_for_each_state=50, 
-                max_trajectory_len=1000, 
                 complex_att_search=100):
         super().__init__(dynamics_Boolean_net, IC, fixed_node_state_map)
         self.repeat_for_each_state = repeat_for_each_state
-        self.max_trajectory_len = max_trajectory_len
         self.complex_att_search = complex_att_search
 
         self.attindex_initial_state_arrival_count_map = {}
@@ -307,6 +305,12 @@ class Asynchro_att_landscape_for_specific_IC(Attractor_landscape_for_specific_IC
         else:
             # if there exists attractor basinstates map which is manually overridden, return that value
             return self._attindex_basinstates_map_manual_override
+
+    @attindex_basinratio_map.setter
+    def attindex_basinratio_map(self, value):
+        """this setter is needed for method 'get_the_average_state_for_each_IC_by_permanent_control'
+        of 'ITP' object."""
+        self._attindex_basinstates_map_manual_override = value
     
     def _network_state_is_in_attractor_found(self, network_state_obj):
         """Check if the given network state value is in any of the attractors found so far.
@@ -366,8 +370,6 @@ class Asynchro_att_landscape_for_specific_IC(Attractor_landscape_for_specific_IC
                                         network_state_value_start:Network_state):
         """하나의 state에 대해서, asynchronous update 를 수행해서 traejctory를 만든다.
         그 trajectory는 point attractor에 도달하는 것이아닌 이상 연속해서 같은 state가 나올 수 없음.
-        각 trajectory의 최대 길이는 self.max_trajectory_len로 제한되며, 
-        그보다 길어질 경우, error를 띄우고, self.max_trajectory_len을 재조정 후 다시 수행 요청함.
 
         그 trajectory가 기존의 attractor에 도달하거나,
         아니면 새로운 attractor를 찾게 되면 계산 종료.
@@ -416,7 +418,7 @@ class Asynchro_att_landscape_for_specific_IC(Attractor_landscape_for_specific_IC
         # this not assure taht trajectory[a:b+1] is a maximal SCC
         # SCC is considered as a single network state in asynchronous state transition graph
 
-        while len(trajectory) <= self.max_trajectory_len:
+        while True:
             network_state_value_next = model_state_asynchronous_update_using_pyboolnet(self.dynamics_Boolean_net, 
                                                                         trajectory[-1], 
                                                                         self.fixed_node_state_map_and_IC)
@@ -542,6 +544,13 @@ class Asynchro_att_landscape_for_specific_IC(Attractor_landscape_for_specific_IC
         from the given network state value, 
         under the input configuration and fixed node state map of this attractor landscape."""
         trajectory, att_arrrived, index_of_att = self._calculate_asynchro_trajectory_and_check(network_state)
+
+        if index_of_att not in self.attractor_index_map:
+            # this trajectory makes a new attractor
+            self.attractor_index_map[index_of_att] = att_arrrived
+
+            self.attindex_initial_state_arrival_count_map[index_of_att] = 1
+
         return att_arrrived, index_of_att
     
     def asynchro_repeated_converge_network_state_to_attractors(self, network_state:Network_state):

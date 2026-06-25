@@ -422,10 +422,9 @@ class ITP:
         fixed_node_state_map_with_control_strategy = {**fixed_node_state_map, **control_strategy}
         attractor_landscape_wo_control = self.iCA.iATG.attractor_landscape_basal
         repeat_for_each_state = attractor_landscape_wo_control.repeat_for_each_state
-        complex_att_search = attractor_landscape_wo_control.complex_att_search
 
         attractor_landscape_controlled = Asynchro_att_landscape_for_specific_IC(dynamics_pyboolnet, IC_basal, fixed_node_state_map_with_control_strategy, 
-                                                                                repeat_for_each_state, complex_att_search)
+                                                                                repeat_for_each_state)
         
         attractor_basal_rev_object = self._get_attractor_object_using_attr_tuple_form(self.attr_basal_rev)
         attractor_basal_irrev_object = self._get_attractor_object_using_attr_tuple_form(self.attr_basal_irrev)
@@ -567,7 +566,6 @@ class ITP:
 
         attractor_landscape_wo_control = self.iCA.iATG.attractor_landscape_basal
         repeat_for_each_state = attractor_landscape_wo_control.repeat_for_each_state
-        complex_att_search = attractor_landscape_wo_control.complex_att_search
 
         attractor_basal_rev_object = self._get_attractor_object_using_attr_tuple_form(self.attr_basal_rev)
         attractor_states_of_basal_rev = attractor_basal_rev_object.get_attractor_states()
@@ -575,17 +573,23 @@ class ITP:
 
         basal_average_state = {node_name: 0 for node_name in node_names}
         transition_average_state = {node_name: 0 for node_name in node_names}
+
+        iATG_controlled = iATG_module.iATG(dynamics_pyboolnet, IC_basal, IC_transition, fixed_node_and_control_strategy)
+        iATG_controlled.set_empty_asynchro_att_landscape_for_each_IC_wo_calculation(repeat_for_each_state)
+        attractor_landscape_basal_in_controlled = iATG_controlled.attractor_landscape_basal
+        att_converged_result_map = {}
+        
         for state_object in attractor_states_of_basal_rev:
             if verbose:
                 print("among basal reversible attractor states,")
                 print(state_object)
                 print("is selected as the starting state for asynchronous update.")
-            iATG_controlled = iATG_module.iATG(dynamics_pyboolnet, IC_basal, IC_transition, fixed_node_and_control_strategy)
+            #iATG_controlled = iATG_module.iATG(dynamics_pyboolnet, IC_basal, IC_transition, fixed_node_and_control_strategy)
             
             # different from synchronous updater version
-            iATG_controlled.set_empty_asynchro_att_landscape_for_each_IC_wo_calculation(repeat_for_each_state, complex_att_search)
+            #iATG_controlled.set_empty_asynchro_att_landscape_for_each_IC_wo_calculation(repeat_for_each_state)
             
-            attractor_landscape_basal_in_controlled = iATG_controlled.attractor_landscape_basal
+            #attractor_landscape_basal_in_controlled = iATG_controlled.attractor_landscape_basal
 
             # different from synchronous updater version
             index_att_converged_map, index_probability_map = attractor_landscape_basal_in_controlled.asynchro_repeated_converge_network_state_to_attractors(state_object)
@@ -594,11 +598,20 @@ class ITP:
                 if verbose:
                     print("in the control configuration, this state converged to attractor")
                     print(attractor_converged.get_average_state())
-                iATG_controlled_for_this_att = iATG_module.iATG(dynamics_pyboolnet, IC_basal, IC_transition, fixed_node_and_control_strategy)
-                iATG_controlled_for_this_att.set_empty_asynchro_att_landscape_for_each_IC_wo_calculation(repeat_for_each_state, complex_att_search)
-                iCAs_reached_from_this_att = self._get_iCAs_asynchronously_reached_from_att_under_control(iATG_controlled_for_this_att, attractor_converged)
+                
+                if index_converged in att_converged_result_map:
+                    basal_average_state_reached_from_this_att, transition_average_state_reached_from_this_att = att_converged_result_map[index_converged]
+                else:
+                    # iATG_controlled_for_this_att = iATG_module.iATG(dynamics_pyboolnet, IC_basal, IC_transition, fixed_node_and_control_strategy)
+                    # iATG_controlled_for_this_att.set_empty_asynchro_att_landscape_for_each_IC_wo_calculation(repeat_for_each_state)
+                    # iCAs_reached_from_this_att = self._get_iCAs_asynchronously_reached_from_att_under_control(iATG_controlled_for_this_att, attractor_converged)
+                    att_converge_code = ("basal", index_converged)
+                    # print("check att_converged_code", att_converge_code)
+                    iATG_controlled.get_asynchro_att_transitions_induced_by_IC_change_and_calculate_TPs(att_converge_code)
+                    iCAs_reached_from_this_att = self._get_iCAs_asynchronously_reached_from_att_under_control(iATG_controlled, attractor_converged)
 
-                basal_average_state_reached_from_this_att, transition_average_state_reached_from_this_att = self._calculate_phenotype_score_of_iCAs(iCAs_reached_from_this_att, node_names)
+                    basal_average_state_reached_from_this_att, transition_average_state_reached_from_this_att = self._calculate_phenotype_score_of_iCAs(iCAs_reached_from_this_att, node_names)
+                    att_converged_result_map[index_converged] = (basal_average_state_reached_from_this_att, transition_average_state_reached_from_this_att)
 
                 for node_name in node_names:
                     prob_of_basal_att_state_selection = 1/num_of_attractor_basal_rev_states
@@ -622,18 +635,29 @@ class ITP:
         # print(AL_basal_in_controlled, type(AL_basal_in_controlled))
         # print(AL_transition_in_controlled, type(AL_transition_in_controlled))
 
-        AL_basal_in_controlled.attractor_index_map[0] = attractor_converged
-        # this attractor_converged becomes starting point      
+        index_of_converged_att = None
+        for index, att in AL_basal_in_controlled.attractor_index_map.items():
+            if att == attractor_converged:
+                # print("attractor_converged is in the attractor landscape of basal in controlled iATG, and its index is ", index)
+                index_of_converged_att = index
+                # in this case, we assume 
+                # that attrractor transitions containing this attractor 
+                # is already constructed
+                break
+        else:
+            index_of_converged_att = 0
+            AL_basal_in_controlled.attractor_index_map[index_of_converged_att] = attractor_converged
+            # this attractor_converged becomes starting point
 
-        iATG_controlled.get_asynchro_att_transitions_induced_by_IC_change_and_calculate_TPs()
-        # construct iATG, whis are reachable from this 'attractor_converged'
+            # iATG_controlled.get_asynchro_att_transitions_induced_by_IC_change_and_calculate_TPs()
+            # construct iATG, whis are reachable from this 'attractor_converged'
 
         num_of_att_in_AL_basal = len(AL_basal_in_controlled.attractor_index_map)
         num_of_att_in_AL_transition = len(AL_transition_in_controlled.attractor_index_map)
 
         AL_basal_in_controlled.attindex_basinratio_map = {i:0 for i in range(num_of_att_in_AL_basal)}
         AL_transition_in_controlled.attindex_basinratio_map = {i:0 for i in range(num_of_att_in_AL_transition)}
-        AL_basal_in_controlled.attindex_basinratio_map[0] = 2
+        AL_basal_in_controlled.attindex_basinratio_map[index_of_converged_att] = 2
 
         iATG_controlled.find_iCAs_and_calculate_iCA_sizes()
 

@@ -1,5 +1,5 @@
 # ROOT
-This repository contains the code for the paper titled   **The origin of irreversible transitions in biological networks**
+This repository contains the code for the paper titled   **The structural origin of irreversible transitions in biological networks**
 
 ROOT (**Revelation Of the Original circuit of irreversible Transition**) is a Python-based framework for identifying the **irreversibility kernel** underlying a specific irreversible cellular process, and for exploring **control strategies** to modulate that process.
 
@@ -36,6 +36,8 @@ git clone https://github.com/yena2bell/ROOT.git
 - scipy (v1.11.4) https://scipy.org/
 
 - matplotlib (v3.7.1) https://matplotlib.org/
+
+- pyStableMotif (v3.0.6) https://github.com/jcrozum/pystablemotifs
 
 ## How to use ROOT
 1. Open `ROOT_template/ROOT_template.ipynb` using Jupyter Notebook and ensure it's connected to a Python 3 kernel with the required packages installed.
